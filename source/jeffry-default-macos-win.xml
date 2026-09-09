@@ -1,4 +1,73 @@
-<keymap version="1" name="Windows">
+<keymap version="1" name="jeffry-default-macos-win">
+  <action id="copilot.disableCopilot">
+    <keyboard-shortcut first-keystroke="shift ctrl alt N"  />
+  </action>
+  <action id="GotoClass">
+    <keyboard-shortcut first-keystroke="ctrl O"  />
+  </action>
+  <action id="copilot.enableCopilot">
+    <keyboard-shortcut first-keystroke="shift ctrl alt N"  />
+  </action>
+  <action id="CommentByLineComment">
+    <keyboard-shortcut first-keystroke="ctrl SLASH"  />
+    <keyboard-shortcut first-keystroke="ctrl DIVIDE"  />
+    <keyboard-shortcut first-keystroke="ctrl UNKNOWN"  />
+  </action>
+  <action id="GotoSymbol">
+    <keyboard-shortcut first-keystroke="shift ctrl alt O"  />
+  </action>
+  <action id="$Redo">
+    <keyboard-shortcut first-keystroke="shift alt BACK_SPACE"  />
+    <keyboard-shortcut first-keystroke="ctrl Y"  />
+  </action>
+  <action id="Editor Redo">
+    <keyboard-shortcut first-keystroke="ctrl Y"  />
+  </action>
+  <action id="ShowSettings">
+    <keyboard-shortcut first-keystroke="ctrl alt S"  />
+    <keyboard-shortcut first-keystroke="ctrl COMMA"  />
+  </action>
+  <action id="GotoFile">
+    <keyboard-shortcut first-keystroke="shift ctrl O"  />
+  </action>
+  <action id="Terminal.Paste">
+    <keyboard-shortcut first-keystroke="ctrl V"  />
+    <keyboard-shortcut first-keystroke="shift INSERT"  />
+    <keyboard-shortcut first-keystroke="shift ctrl V"  />
+  </action>
+  <action id="ForceRunToCursor">
+    <keyboard-shortcut first-keystroke="ctrl alt 9"  />
+  </action>
+  <action id="QuickEvaluateExpression">
+    <keyboard-shortcut first-keystroke="ctrl alt 8"  />
+    <mouse-shortcut keystroke="shift alt ctrl button1" />
+  </action>
+  <action id="Images.EditExternally">
+    <keyboard-shortcut first-keystroke="ctrl alt 4"  />
+  </action>
+  <action id="Terminal.CopySelectedText">
+    <keyboard-shortcut first-keystroke="ctrl C"  />
+    <keyboard-shortcut first-keystroke="ctrl INSERT"  />
+    <keyboard-shortcut first-keystroke="shift ctrl C"  />
+  </action>
+  <action id="ShowSettingsAndFindUsages">
+    <keyboard-shortcut first-keystroke="shift ctrl alt 7"  />
+  </action>
+  <action id="XDebugger.AttachToProcess">
+    <keyboard-shortcut first-keystroke="ctrl alt 5"  />
+  </action>
+  <action id="RunToCursor">
+    <keyboard-shortcut first-keystroke="shift alt 9"  />
+  </action>
+  <action id="ShowFilePath">
+    <keyboard-shortcut first-keystroke="shift ctrl alt 2"  />
+  </action>
+  <action id="SwitchCoverage">
+    <keyboard-shortcut first-keystroke="ctrl alt 6"  />
+  </action>
+  <action id="ShowUsages">
+    <keyboard-shortcut first-keystroke="ctrl alt 7"  />
+  </action>
   <action id="ToggleBookmark8">
     <keyboard-shortcut first-keystroke="shift ctrl 8"  />
   </action>
@@ -221,17 +290,11 @@
   <action id="Terminal.SearchInCommandHistory">
     <keyboard-shortcut first-keystroke="ctrl R"  />
   </action>
-  <action id="EditorDeleteLine">
-    <keyboard-shortcut first-keystroke="ctrl Y"  />
-  </action>
   <action id="EditSourceInNewWindow">
     <keyboard-shortcut first-keystroke="shift F4"  />
   </action>
   <action id="ShowFilterPopup">
     <keyboard-shortcut first-keystroke="ctrl alt F"  />
-  </action>
-  <action id="GotoSymbol">
-    <keyboard-shortcut first-keystroke="shift ctrl alt N"  />
   </action>
   <action id="EditorCreateRectangularSelectionOnMouseDrag">
     <mouse-shortcut keystroke="shift alt button1" />
@@ -289,9 +352,6 @@
   <action id="PasteMultiple">
     <keyboard-shortcut first-keystroke="shift ctrl V"  />
     <keyboard-shortcut first-keystroke="shift ctrl INSERT"  />
-  </action>
-  <action id="ShowUsages">
-    <keyboard-shortcut first-keystroke="ctrl alt F7"  />
   </action>
   <action id="Rainbow.ScopeHighlightingAction">
     <mouse-shortcut keystroke="ctrl button3" />
@@ -361,15 +421,8 @@
   <action id="RecentChanges">
     <keyboard-shortcut first-keystroke="shift alt C"  />
   </action>
-  <action id="ForceRunToCursor">
-    <keyboard-shortcut first-keystroke="ctrl alt F9"  />
-  </action>
   <action id="com.laravel_idea.plugin.GenerateHelperCodeAction">
     <keyboard-shortcut first-keystroke="shift ctrl PERIOD"  />
-  </action>
-  <action id="QuickEvaluateExpression">
-    <keyboard-shortcut first-keystroke="ctrl alt F8"  />
-    <mouse-shortcut keystroke="shift alt button1" />
   </action>
   <action id="ExternalJavaDoc">
     <keyboard-shortcut first-keystroke="shift F1"  />
@@ -440,9 +493,6 @@
     <mouse-shortcut keystroke="ctrl button1" />
     <mouse-shortcut keystroke="button2" />
   </action>
-  <action id="ActivateUnitTestsToolWindow">
-    <keyboard-shortcut first-keystroke="shift alt 8"  />
-  </action>
   <action id="StepOver">
     <keyboard-shortcut first-keystroke="F8"  />
   </action>
@@ -466,9 +516,6 @@
   </action>
   <action id="continue.focusContinueInputWithoutClear">
     <keyboard-shortcut first-keystroke="shift ctrl J"  />
-  </action>
-  <action id="SwitchCoverage">
-    <keyboard-shortcut first-keystroke="ctrl alt F6"  />
   </action>
   <action id="FindUsagesInFile">
     <keyboard-shortcut first-keystroke="ctrl F7"  />
@@ -503,13 +550,6 @@
   <action id="Graph.ActualSize">
     <keyboard-shortcut first-keystroke="ctrl DIVIDE"  />
     <keyboard-shortcut first-keystroke="ctrl SLASH"  />
-  </action>
-  <action id="Terminal.CopySelectedText">
-    <keyboard-shortcut first-keystroke="ctrl C"  />
-    <keyboard-shortcut first-keystroke="ctrl INSERT"  />
-  </action>
-  <action id="copilot.enableCopilot">
-    <keyboard-shortcut first-keystroke="shift ctrl alt O"  />
   </action>
   <action id="ImplementMethods">
     <keyboard-shortcut first-keystroke="ctrl I"  />
@@ -666,10 +706,6 @@
   </action>
   <action id="SaveAs">
     <keyboard-shortcut first-keystroke="shift ctrl S"  />
-  </action>
-  <action id="Terminal.Paste">
-    <keyboard-shortcut first-keystroke="ctrl V"  />
-    <keyboard-shortcut first-keystroke="shift INSERT"  />
   </action>
   <action id="MTPreviousFavoriteThemeAction">
     <keyboard-shortcut first-keystroke="shift ctrl meta alt P"  />
@@ -841,9 +877,6 @@
     <keyboard-shortcut first-keystroke="ctrl F"  />
     <keyboard-shortcut first-keystroke="alt F3"  />
   </action>
-  <action id="copilot.diffBlock.accept">
-    <keyboard-shortcut first-keystroke="ctrl Y"  />
-  </action>
   <action id="EditorPageUp">
     <keyboard-shortcut first-keystroke="PAGE_UP"  />
   </action>
@@ -1010,9 +1043,6 @@
   <action id="EditorTextEndWithSelection">
     <keyboard-shortcut first-keystroke="shift ctrl END"  />
   </action>
-  <action id="OverrideMethods">
-    <keyboard-shortcut first-keystroke="ctrl O"  />
-  </action>
   <action id="CopyReference">
     <keyboard-shortcut first-keystroke="shift ctrl alt C"  />
   </action>
@@ -1046,10 +1076,6 @@
   </action>
   <action id="EditorAddCaretPerSelectedLine">
     <keyboard-shortcut first-keystroke="shift alt G"  />
-  </action>
-  <action id="$Redo">
-    <keyboard-shortcut first-keystroke="shift ctrl Z"  />
-    <keyboard-shortcut first-keystroke="shift alt BACK_SPACE"  />
   </action>
   <action id="ResizeToolWindowDown">
     <keyboard-shortcut first-keystroke="shift ctrl alt DOWN"  />
@@ -1088,9 +1114,6 @@
   <action id="Console.TableResult.CompareCells">
     <keyboard-shortcut first-keystroke="shift ctrl D"  />
   </action>
-  <action id="copilot.diffBlock.discard">
-    <keyboard-shortcut first-keystroke="ctrl N"  />
-  </action>
   <action id="ExpandToLevel5">
     <keyboard-shortcut first-keystroke="ctrl MULTIPLY" second-keystroke="5" />
     <keyboard-shortcut first-keystroke="ctrl MULTIPLY" second-keystroke="NUMPAD5" />
@@ -1124,9 +1147,6 @@
   </action>
   <action id="ShowUmlDiagram">
     <keyboard-shortcut first-keystroke="shift ctrl alt U"  />
-  </action>
-  <action id="GotoClass">
-    <keyboard-shortcut first-keystroke="ctrl N"  />
   </action>
   <action id="CopyElement">
     <keyboard-shortcut first-keystroke="F5"  />
@@ -1304,9 +1324,6 @@
   <action id="tasks.switch">
     <keyboard-shortcut first-keystroke="shift alt T"  />
   </action>
-  <action id="ShowFilePath">
-    <keyboard-shortcut first-keystroke="ctrl alt F12"  />
-  </action>
   <action id="MoveLineDown">
     <keyboard-shortcut first-keystroke="shift alt DOWN"  />
   </action>
@@ -1326,12 +1343,6 @@
   <action id="Replace">
     <keyboard-shortcut first-keystroke="ctrl R"  />
   </action>
-  <action id="ShowSettings">
-    <keyboard-shortcut first-keystroke="ctrl alt S"  />
-  </action>
-  <action id="GotoFile">
-    <keyboard-shortcut first-keystroke="shift ctrl N"  />
-  </action>
   <action id="EditorPasteSimple">
     <keyboard-shortcut first-keystroke="shift ctrl alt V"  />
   </action>
@@ -1342,9 +1353,6 @@
     <keyboard-shortcut first-keystroke="ENTER"  />
     <keyboard-shortcut first-keystroke="alt ENTER"  />
     <keyboard-shortcut first-keystroke="F2"  />
-  </action>
-  <action id="XDebugger.AttachToProcess">
-    <keyboard-shortcut first-keystroke="ctrl alt F5"  />
   </action>
   <action id="SmartTypeCompletion">
     <keyboard-shortcut first-keystroke="shift ctrl SPACE"  />
@@ -1415,13 +1423,6 @@
   </action>
   <action id="Diff.ApplyLeftSide">
     <keyboard-shortcut first-keystroke="ctrl alt R"  />
-  </action>
-  <action id="CommentByLineComment">
-    <keyboard-shortcut first-keystroke="ctrl SLASH"  />
-    <keyboard-shortcut first-keystroke="ctrl DIVIDE"  />
-  </action>
-  <action id="ActivateNuGetToolWindow">
-    <keyboard-shortcut first-keystroke="shift alt 7"  />
   </action>
   <action id="SplitChooser.PreviousWindow">
     <keyboard-shortcut first-keystroke="shift TAB"  />
@@ -1532,9 +1533,6 @@
   </action>
   <action id="CurrentLeadUnfollowAction">
     <keyboard-shortcut first-keystroke="shift ctrl alt Y"  />
-  </action>
-  <action id="ChangesView.ShowCommitOptions">
-    <keyboard-shortcut first-keystroke="ctrl O"  />
   </action>
   <action id="Terminal.SelectBlockBelow">
     <keyboard-shortcut first-keystroke="DOWN"  />
@@ -1651,9 +1649,6 @@
   <action id="EmmetNextEditPoint">
     <keyboard-shortcut first-keystroke="shift alt CLOSE_BRACKET"  />
   </action>
-  <action id="ShowSettingsAndFindUsages">
-    <keyboard-shortcut first-keystroke="shift ctrl alt F7"  />
-  </action>
   <action id="ResizeToolWindowRight">
     <keyboard-shortcut first-keystroke="shift ctrl alt RIGHT"  />
   </action>
@@ -1751,9 +1746,6 @@
   <action id="GotoBookmark2">
     <keyboard-shortcut first-keystroke="ctrl 2"  />
   </action>
-  <action id="Images.EditExternally">
-    <keyboard-shortcut first-keystroke="ctrl alt F4"  />
-  </action>
   <action id="GotoBookmark1">
     <keyboard-shortcut first-keystroke="ctrl 1"  />
   </action>
@@ -1780,9 +1772,6 @@
   </action>
   <action id="Move">
     <keyboard-shortcut first-keystroke="F6"  />
-  </action>
-  <action id="RunToCursor">
-    <keyboard-shortcut first-keystroke="alt F9"  />
   </action>
   <action id="BraceOrQuoteOut">
     <keyboard-shortcut first-keystroke="TAB"  />

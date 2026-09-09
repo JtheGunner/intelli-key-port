@@ -75,7 +75,7 @@
     { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "editorTextFocus && !terminalFocus" },
     { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "editorTextFocus && !terminalFocus" },
     { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+y",       "command": "editor.action.deleteLines",          "when": "textInputFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+y",       "command": "redo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
     { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "editorFocus && !terminalFocus" },
     { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "editorFocus && !terminalFocus" },
     { "key": "ctrl+k",       "command": "git.commitAll",                     "when": "!terminalFocus && !inDebugMode" },

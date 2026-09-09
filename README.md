@@ -5,7 +5,7 @@ Port a **PhpStorm "Windows" keymap** (with personal customizations) to
 
 ## Why the naive route failed
 
-`Windows.xml` was run through the `isudox.vscode-jetbrains-keybindings`
+The PhpStorm export was run through the `isudox.vscode-jetbrains-keybindings`
 XML importer. That importer is not a real keymap porter:
 
 - ~232 of 378 emitted entries were `-command` **removals** (they only
@@ -23,8 +23,9 @@ Net result: a handful of working bindings out of hundreds.
 ## How this works instead
 
 ```
-source/Windows.xml            PhpStorm export = source of truth
-        │
+source/<anything>.xml         PhpStorm "Export Keymap" file = source of truth
+        │                     (resolve_source_xml picks the single *.xml whose
+        │                      root is <keymap>; newest wins if there are several)
         ▼
 generate.py  ──uses──►  vendor/ActionIdCommandMapping.json   (IntelliJ action → VS Code command)
                         vendor/KeystrokeKeyMapping.json       (AWT key token → VS Code key)
@@ -65,34 +66,42 @@ python3 generate.py     # rebuild keybindings.generated.json + report.md
 ./install.sh            # back up + deploy to the 3 editors, then reload windows
 ```
 
-Re-export `Windows.xml` from PhpStorm (Settings → Keymap → gear → *Export
-Keymap*, or the `intellij-keymap-xml-exporter`) into `source/`, then run
-the two commands again.
+Re-export the keymap from PhpStorm (Settings → Keymap → gear → *Export
+Keymap*, or `intellij-keymap-xml-exporter`) and drop the `.xml` in
+`source/` — **any file name**. Delete the previous one, or leave it: the
+newest is used and a note is printed. Then run the two commands again.
 
 ## Known trade-offs (edit `overrides.jsonc` to change)
+
+Generated bare `ctrl+<letter>` bindings carry a `!terminalFocus` guard so
+the integrated terminal keeps its readline control chars (Ctrl+R, Ctrl+P,
+Ctrl+T, …). The `overrides.jsonc` entries win over the generated block.
 
 | Key | This port | Note |
 |-----|-----------|------|
 | `ctrl+numpad +` / `-` | zoom in / out | fold-all loses the bare-numpad combo; **fold still works on `ctrl+=` / `ctrl+-`** and fold-all on `ctrl+shift+=` / `ctrl+shift+-` |
-| `ctrl+s` | save current file | PhpStorm's literal *Save All* is on the same key; VS Code auto-save covers the rest |
+| `ctrl+y` | redo | matches this export (`$Redo` / `Editor Redo`); `ctrl+shift+z` also redoes |
+| `ctrl+s` | save current file | the export puts *Save All* here; VS Code auto-save covers the rest |
+| `ctrl+,` | Settings UI | export also has `ctrl+alt+s`; both open settings |
+| `f7` | Step Into (debug) / Next Diff | both come straight from the export; no-op outside their context |
 | `ctrl+shift+c` | terminal: copy selection / editor: copy file path | different `when` contexts, no real clash |
 | `shift+enter` | terminal: send `ESC CR` (multiline in Claude Code etc.) / editor: new line below | different `when` contexts |
 | mouse shortcuts (19) | **not ported** | `keybindings.json` has no mouse bindings — see `report.md` |
-| `CONTEXT_MENU` key | dropped | no reliable VS Code equivalent |
+| `ctrl UNKNOWN` on Comment Line | dropped (1) | the export itself could not represent the key; `ctrl+/` still comments |
 
 ## Verify after install
 
 Reload each editor window, then spot-check (editor focused, **not** the terminal):
 
 - `ctrl+d` → duplicate line
-- `ctrl+y` → delete line
+- `ctrl+y` → redo
 - `ctrl+w` / `ctrl+shift+w` → expand / shrink selection
-- `shift+ctrl+right` → extend selection by word
-- `ctrl+b` → go to definition
-- `ctrl+alt+l` … actually `ctrl+alt+l` is reformat in PhpStorm → check `report.md` mapping
+- `ctrl+b` → go to definition, `ctrl+alt+b` → go to implementation
+- `ctrl+alt+l` → reformat code
 - `ctrl+shift+a` → Find Action (command palette)
+- `ctrl+o` → Go to Class, `ctrl+shift+o` → Go to File
 - `alt+1` / `alt+3` / `alt+9` → Explorer / Search / SCM
-- In the **terminal**: `ctrl+c`, `ctrl+d`, `ctrl+r` still behave as shell control chars.
+- In the **terminal**: `ctrl+c`, `ctrl+d`, `ctrl+r`, `ctrl+p`, `ctrl+t` still behave as shell control chars.
 
 Then open **Preferences: Open Keyboard Shortcuts** and filter `@source:user`
-— you should now see ~170 entries, not a dozen.
+— you should now see ~176 entries, not a dozen.
