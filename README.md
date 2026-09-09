@@ -95,27 +95,24 @@ python port.py
 ## 🧩 How it fits together
 
 IntelliKeyPort is a small set of plain-Python scripts plus **one**
-hand-maintained data file. `port.py` runs a three-stage pipeline:
+hand-maintained data file. `port.py` runs a three-stage pipeline — read it
+top to bottom:
 
-```mermaid
-flowchart TD
-    IDE([🧠 IntelliJ IDE · active keymap]):::src
-    R[resolve_keymap.py]:::stage
-    G["generate.py + overrides.jsonc"]:::stage
-    I[install.py]:::stage
-    OUT([💻 VS Code family]):::dst
-
-    IDE -->|export| R
-    R -->|"source/*.resolved.xml"| G
-    G -->|"keybindings.generated.json"| I
-    I -->|write + backup| OUT
-
-    classDef src fill:#6b57d2,color:#fff,stroke:#4b3aa8
-    classDef dst fill:#0ea5e9,color:#fff,stroke:#0369a1
-    classDef stage fill:#1f2430,color:#e6e6e6,stroke:#3a4152
+```text
+   IntelliJ IDE  ·  your active keymap
+        │
+        ▼   resolve_keymap.py      find the IDE, flatten the parent chain
+   source/<name>.resolved.xml
+        │
+        ▼   generate.py  +  overrides.jsonc      actions → commands, keys → keys
+   keybindings.generated.json   (+ report.md)
+        │
+        ▼   install.py      timestamped backup, then write
+   VS Code · Cursor · Windsurf · Antigravity · …
 ```
 
-<sub>Each stage is also a standalone script — `port.py` just runs the three in order and stops on the first failure.</sub>
+Each stage is also a standalone script; `port.py` just runs the three in order
+and stops at the first failure.
 
 ### 📂 The files
 
