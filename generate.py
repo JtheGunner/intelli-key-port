@@ -62,11 +62,23 @@ EXTRA_KEY_MAP = {
     "context_menu": None,   # no reliable VS Code equivalent
     "printscreen": None,
     "begin": None,
-    "unknown": None,        # PhpStorm exports this for keystrokes it cannot represent
+    "unknown": None,        # the external exporter emits this for keys it cannot serialize
 }
 
-MODIFIERS = {"ctrl", "shift", "alt", "meta"}
-MOD_TRANSLATE = {"meta": "cmd"}  # ctrl/shift/alt pass through unchanged
+# Characters that IntelliJ stores as an extended key code (#100XXXX, XXXX = codepoint).
+# Mapped to a VS Code *scan-code* token so the binding follows the physical key
+# regardless of the active keyboard layout.
+EXTENDED_CHAR_KEY = {
+    "§": "[Backquote]",     # § / ° - key left of "1" on Swiss/German ISO
+    "°": "[Backquote]",
+    "<": "[IntlBackslash]",      # < / > - ISO key left of "Z"
+    ">": "[IntlBackslash]",
+    "´": "[Equal]",         # ´ / ` dead key on Swiss/German
+    "¨": "[BracketRight]",  # ¨ / ! dead key on Swiss
+}
+
+MODIFIERS = {"ctrl", "control", "shift", "alt", "meta"}
+MOD_TRANSLATE = {"meta": "cmd", "control": "ctrl"}  # ctrl/shift/alt pass through unchanged
 
 # Bare Ctrl+<letter> chords that a shell/readline needs; generated editor
 # bindings on these get a `!terminalFocus` guard.
@@ -148,7 +160,14 @@ def translate_token(tok: str, key_map: dict[str, str | None]) -> str | None:
             mods.append(MOD_TRANSLATE.get(low, low))
             continue
         # the key itself
-        if len(low) == 1 and (low.isalnum()):
+        if p.startswith("#"):
+            # IntelliJ extended key code: #100XXXX where XXXX is a Unicode codepoint.
+            try:
+                ch = chr(int(p[1:], 16) & 0xFFFF)
+            except ValueError:
+                return None
+            key = EXTENDED_CHAR_KEY.get(ch) or key_map.get(ch) or (ch if ch.isprintable() and len(ch) == 1 and not ch.isspace() else None)
+        elif len(low) == 1 and low.isalnum():
             key = low
         elif low in key_map:
             key = key_map[low]
@@ -180,23 +199,31 @@ def translate_keystroke(first: str, second: str | None, key_map) -> str | None:
 
 
 def resolve_source_xml() -> Path:
-    """Locate the PhpStorm keymap export in source/.
+    """Locate the keymap to port from source/.
 
-    Any *.xml whose root element is <keymap> qualifies - the file name does not
-    matter. Exactly one match -> use it. Several -> use the newest by mtime and
-    say which. None -> hard error.
+    A `*.resolved.xml` (produced by resolve_keymap.py from PhpStorm's own files)
+    is preferred; otherwise any *.xml whose root element is <keymap> qualifies -
+    the file name does not matter. Exactly one match -> use it. Several -> use
+    the newest by mtime and say which. None -> hard error.
     """
-    candidates = []
-    for p in sorted(SOURCE_DIR.glob("*.xml")):
-        try:
-            if ET.parse(p).getroot().tag == "keymap":
-                candidates.append(p)
-        except ET.ParseError:
-            continue
+    def keymaps(paths):
+        out = []
+        for p in sorted(paths):
+            try:
+                if ET.parse(p).getroot().tag == "keymap":
+                    out.append(p)
+            except ET.ParseError:
+                continue
+        return out
+
+    resolved = keymaps(SOURCE_DIR.glob("*.resolved.xml"))
+    candidates = resolved or keymaps(
+        p for p in SOURCE_DIR.glob("*.xml") if not p.name.endswith(".resolved.xml")
+    )
     if not candidates:
         raise SystemExit(
-            f"no <keymap> *.xml found in {SOURCE_DIR}/ - drop your PhpStorm "
-            f"'Export Keymap' file there (any name)."
+            f"no <keymap> *.xml in {SOURCE_DIR}/ - run `python3 resolve_keymap.py`, "
+            f"or drop a PhpStorm 'Export Keymap' file there (any name)."
         )
     if len(candidates) == 1:
         return candidates[0]
