@@ -65,16 +65,24 @@ EXTRA_KEY_MAP = {
     "unknown": None,        # the external exporter emits this for keys it cannot serialize
 }
 
-# Characters that IntelliJ stores as an extended key code (#100XXXX, XXXX = codepoint).
-# Mapped to a VS Code *scan-code* token so the binding follows the physical key
-# regardless of the active keyboard layout.
+# Characters that IntelliJ stores as an extended key code (#100XXXX, XXXX = the
+# Unicode codepoint of the character the key produces on the author's layout).
+# Mapped to a VS Code *scan-code* token ("[Name]") so the binding follows the
+# physical key regardless of the active keyboard layout. Extend as needed for
+# other layouts (the resolver prints every #100XXXX token it sees).
 EXTENDED_CHAR_KEY = {
-    "§": "[Backquote]",     # § / ° - key left of "1" on Swiss/German ISO
+    "§": "[Backquote]",     # §/° or `/~  - key left of "1" (Swiss/German/Nordic ISO)
     "°": "[Backquote]",
-    "<": "[IntlBackslash]",      # < / > - ISO key left of "Z"
+    "²": "[Backquote]",     # ²  - same key on French AZERTY
+    "<": "[IntlBackslash]", # </>  - extra ISO key left of "Z"
     ">": "[IntlBackslash]",
-    "´": "[Equal]",         # ´ / ` dead key on Swiss/German
-    "¨": "[BracketRight]",  # ¨ / ! dead key on Swiss
+    "|": "[IntlBackslash]",
+    "´": "[Equal]",         # ´/` dead key (Swiss/German)
+    "¨": "[BracketRight]",  # ¨/! dead key (Swiss)
+    "+": "[BracketRight]",  # +/*  - German ISO
+    "#": "[Backslash]",     # #/'  - German ISO
+    "ä": "[Quote]", "ö": "[Semicolon]", "ü": "[BracketLeft]",  # German ISO letters
+    "é": "[Digit2]", "è": "[Digit7]", "à": "[Digit0]",          # Swiss French / AZERTY
 }
 
 MODIFIERS = {"ctrl", "control", "shift", "alt", "meta"}

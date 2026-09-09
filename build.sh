@@ -7,4 +7,4 @@ python3 resolve_keymap.py "$@"
 echo
 python3 generate.py
 echo
-echo "next: ./install.sh   (backs up + deploys to VS Code + Antigravity)"
+echo "next: python3 install.py   (or ./install.sh)"

@@ -1,40 +1,46 @@
 #!/usr/bin/env python3
 """
-Resolve a JetBrains user keymap into a flat, fully-inherited XML - our own
+Resolve the *active* JetBrains keymap into a flat, fully-inherited XML - our own
 replacement for the `intellij-keymap-xml-exporter` round-trip.
 
 Why do this ourselves
 ---------------------
-The external exporter mangles keystrokes it cannot represent. Concretely it
-turned the user's `ctrl §` (stored by PhpStorm as the extended key code
-`ctrl #10000a7`, 0xA7 = section sign) into `ctrl UNKNOWN`. Reading PhpStorm's
-own keymap files and walking the `parent=` chain keeps every token intact and
-removes the third-party dependency.
+The external exporter mangles keystrokes it cannot represent (it turned
+`ctrl §`, stored by the IDE as `ctrl #10000a7`, into `ctrl UNKNOWN`). Reading
+the IDE's own keymap files and walking the `parent=` chain keeps every token
+intact and removes the third-party dependency.
 
-Chain for this user:
-    jeffry-default-macos-win   (~19 action overrides, in the config dir)
-      └─ parent "Default for XWin"   (16 overrides, bundled in app.jar)
-           └─ parent "$default"      (424 actions, bundled in app.jar, root)
+What it does
+------------
+1. Locate the IDE install (via its `product-info.json`) and the matching
+   config dir (`product-info.json` -> `dataDirectoryName`).  macOS, Windows
+   and Linux, standalone installs and JetBrains Toolbox.
+2. Read the ACTIVE keymap name from
+   `<config>/options/mac/keymap.xml` (macOS) or `<config>/options/keymap.xml`
+   -> `<active_keymap name="..."/>`.  `--keymap` overrides this.
+3. Walk parent -> child (`$default` -> ... -> active), merging:
+     * child <action id> with >=1 shortcut  -> REPLACES the parent's list
+     * child <action id/> with no shortcut  -> clears the parent's list
+   plus the shortcuts plugins register in their `META-INF/*.xml`
+   (`<keyboard-shortcut keymap="$default"/>`), which live outside keymaps/*.xml.
+4. Write `source/<name>.resolved.xml` (picked up by generate.py, which prefers
+   *.resolved.xml when present).
 
-Merge rule (standard IntelliJ semantics):
-  * child <action id> with >=1 shortcut  -> REPLACES the parent's short
-    list for that action id (not merged).
-  * child <action id/> with no shortcut  -> action has no shortcuts
-    (clears whatever the parent gave it).
-
-Output: source/<name>.resolved.xml  (picked up by generate.py, which prefers
-*.resolved.xml when present).
-
-Usage:
-    python3 resolve_keymap.py                      # auto-detect newest PhpStorm + its single user keymap
+Usage
+-----
+    python3 resolve_keymap.py                       # active keymap of the newest PhpStorm
     python3 resolve_keymap.py --product IntelliJIdea
-    python3 resolve_keymap.py --keymap "my keymap"
-    python3 resolve_keymap.py --config-dir ~/... --app /Applications/PhpStorm.app
+    python3 resolve_keymap.py --keymap "macOS"      # a specific keymap (built-in or user)
+    python3 resolve_keymap.py --app "/path/to/IDE"  # explicit install
+    python3 resolve_keymap.py --config-dir "/path/to/<Product><version>"
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import platform
 import re
 import sys
 import zipfile
@@ -44,69 +50,223 @@ from xml.sax.saxutils import quoteattr
 
 ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / "source"
+IS_MAC = platform.system() == "Darwin"
+IS_WIN = platform.system() == "Windows"
 
-JETBRAINS = Path.home() / "Library" / "Application Support" / "JetBrains"
-# product config dir -> .app bundle name stem
-APP_STEM = {
-    "PhpStorm": "PhpStorm",
-    "IntelliJIdea": "IntelliJ IDEA",
-    "IdeaIC": "IntelliJ IDEA CE",
-    "WebStorm": "WebStorm",
-    "PyCharm": "PyCharm",
-    "DataGrip": "DataGrip",
-    "GoLand": "GoLand",
-    "RubyMine": "RubyMine",
-    "CLion": "CLion",
-    "Rider": "Rider",
+# `--product` value -> substrings that identify the install (product-info.json
+# "name") and the config-dir prefix (dataDirectoryName / folder name).
+PRODUCTS = {
+    "PhpStorm": ("PhpStorm",),
+    "IntelliJIdea": ("IntelliJ IDEA", "IdeaIC", "IdeaIU"),
+    "WebStorm": ("WebStorm",),
+    "PyCharm": ("PyCharm",),
+    "DataGrip": ("DataGrip",),
+    "GoLand": ("GoLand",),
+    "RubyMine": ("RubyMine",),
+    "CLion": ("CLion",),
+    "Rider": ("Rider",),
+    "RustRover": ("RustRover",),
 }
 
 
-def newest_product_dir(product: str) -> Path:
-    hits = sorted(
-        (p for p in JETBRAINS.glob(f"{product}*") if (p / "keymaps").is_dir()),
-        key=lambda p: p.stat().st_mtime,
-    )
-    if not hits:
+# --------------------------------------------------------------------------- #
+# platform-aware locations
+# --------------------------------------------------------------------------- #
+def jetbrains_config_home() -> Path:
+    if IS_MAC:
+        return Path.home() / "Library" / "Application Support" / "JetBrains"
+    if IS_WIN:
+        base = os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming")
+        return Path(base) / "JetBrains"
+    base = os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")
+    return Path(base) / "JetBrains"
+
+
+def install_search_roots() -> list[Path]:
+    home = Path.home()
+    roots: list[Path] = []
+    if IS_MAC:
+        roots += [Path("/Applications"), home / "Applications"]
+        roots += [jetbrains_config_home() / "Toolbox" / "apps"]
+    elif IS_WIN:
+        for env in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
+            if os.environ.get(env):
+                roots.append(Path(os.environ[env]) / "JetBrains")
+        if os.environ.get("LOCALAPPDATA"):
+            la = Path(os.environ["LOCALAPPDATA"])
+            roots += [la / "Programs", la / "JetBrains" / "Toolbox" / "apps",
+                      la / "JetBrains"]
+    else:
+        roots += [Path("/opt"), Path("/usr/local"), Path("/snap"),
+                  home / ".local" / "share" / "JetBrains" / "Toolbox" / "apps",
+                  home / ".local" / "share" / "applications"]
+    return [r for r in roots if r.exists()]
+
+
+def _product_info_dirs(root: Path):
+    """Yield directories that directly contain a product-info.json, a few levels deep."""
+    for depth_glob in ("product-info.json",
+                       "*/product-info.json",
+                       "*/*/product-info.json",
+                       "*/*/*/product-info.json",
+                       "*/Contents/Resources/product-info.json",
+                       "*/*/*/Contents/Resources/product-info.json"):
+        for hit in root.glob(depth_glob):
+            yield hit
+
+
+def discover_installs(product: str):
+    """Return [(version_tuple, install_dir, lib_dir, plugins_dir, data_dir_name), ...]."""
+    names = PRODUCTS.get(product, (product,))
+    found = {}
+    for root in install_search_roots():
+        for info_path in _product_info_dirs(root):
+            try:
+                info = json.loads(info_path.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                continue
+            if not any(n.lower() in info.get("name", "").lower() for n in names):
+                continue
+            # macOS: info is at <app>/Contents/Resources/ ; home = <app>/Contents
+            # win/linux: info is at <install>/ ; home = <install>
+            if info_path.parent.name == "Resources" and info_path.parent.parent.name == "Contents":
+                home = info_path.parent.parent
+                install_dir = home.parent
+            else:
+                home = info_path.parent
+                install_dir = home
+            lib = home / "lib"
+            if not (lib / "app.jar").is_file():
+                continue
+            ver = tuple(int(x) for x in re.findall(r"\d+", info.get("version", "0"))[:4]) or (0,)
+            found[install_dir] = (ver, install_dir, lib, home / "plugins",
+                                  info.get("dataDirectoryName", ""))
+    return sorted(found.values())
+
+
+def resolve_install(product: str, app_override: str | None):
+    if app_override:
+        hint = Path(app_override).expanduser()
+        if not hint.exists():
+            raise SystemExit(f"--app not found: {hint}")
+        for base in (hint, hint / "Contents", *sorted(hint.glob("*/Contents")),
+                     *sorted(hint.glob("*")), *sorted(hint.glob("*/*"))):
+            if (base / "lib" / "app.jar").is_file():
+                data = ""
+                for name in ("Resources/product-info.json", "product-info.json",
+                             "../product-info.json"):
+                    p = base / name
+                    if p.is_file():
+                        try:
+                            data = json.loads(p.read_text(encoding="utf-8")).get("dataDirectoryName", "")
+                        except ValueError:
+                            pass
+                        break
+                return base / "lib", base / "plugins", data
+        raise SystemExit(f"no lib/app.jar under {hint}")
+    installs = discover_installs(product)
+    if not installs:
         raise SystemExit(
-            f"no '{product}*' dir with a keymaps/ folder under {JETBRAINS}"
+            f"no {product} install found. Searched: "
+            + ", ".join(str(r) for r in install_search_roots())
+            + "  - pass --app /path/to/IDE"
         )
-    return hits[-1]
+    if len(installs) > 1:
+        others = ", ".join(".".join(map(str, v)) for v, *_ in installs[:-1])
+        print(f"note: {len(installs)} {product} installs; using newest "
+              f"{'.'.join(map(str, installs[-1][0]))} (others: {others})", file=sys.stderr)
+    _, _, lib, plugins, data = installs[-1]
+    return lib, plugins, data
 
 
-def find_app(product: str, override: str | None) -> Path:
-    if override:
-        p = Path(override).expanduser()
-        if not p.exists():
-            raise SystemExit(f"--app not found: {p}")
+def resolve_config_dir(product: str, config_override: str | None, data_dir_name: str) -> Path:
+    if config_override:
+        p = Path(config_override).expanduser()
+        if not (p / "options").is_dir() and not (p / "keymaps").is_dir():
+            raise SystemExit(f"--config-dir has no options/ or keymaps/: {p}")
         return p
-    stem = APP_STEM.get(product, product)
-    for base in (Path("/Applications"), Path.home() / "Applications"):
-        hits = sorted(base.glob(f"{stem}*.app"))
-        if hits:
-            return hits[-1]
-    raise SystemExit(
-        f"could not locate {stem}*.app in /Applications or ~/Applications - pass --app"
+    home = jetbrains_config_home()
+    if data_dir_name and (home / data_dir_name).is_dir():
+        return home / data_dir_name
+    # fall back: newest <product>* dir with options/ or keymaps/
+    cands = sorted(
+        (d for d in home.glob(f"{product}*")
+         if (d / "options").is_dir() or (d / "keymaps").is_dir()),
+        key=lambda d: d.stat().st_mtime,
     )
+    if not cands:
+        raise SystemExit(f"no {product} config dir under {home}")
+    return cands[-1]
 
 
+def read_active_keymap(config_dir: Path) -> str | None:
+    """`<active_keymap name>` from options/mac/keymap.xml (mac) or options/keymap.xml."""
+    order = ["options/mac/keymap.xml", "options/keymap.xml"] if IS_MAC \
+        else ["options/keymap.xml", "options/mac/keymap.xml"]
+    for rel in order:
+        p = config_dir / rel
+        if not p.is_file():
+            continue
+        try:
+            root = ET.fromstring(p.read_text(encoding="utf-8"))
+        except ET.ParseError:
+            continue
+        el = root.find(".//active_keymap")
+        if el is not None and el.get("name"):
+            return el.get("name")
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# keymap sources + resolution
+# --------------------------------------------------------------------------- #
 class KeymapSource:
-    """Provides keymap XML text by name, from the config dir or the app's jars."""
+    """Keymap XML text by name, from the config dir or the IDE's jars."""
 
-    def __init__(self, config_keymaps: Path, app: Path):
+    def __init__(self, config_keymaps: Path, lib_dir: Path, plugins_dir: Path):
         self.config_keymaps = config_keymaps
-        self.jars = [app / "Contents" / "lib" / "app.jar"]
-        self.jars += sorted((app / "Contents" / "plugins").glob("keymap-*/lib/*.jar"))
+        jars = [lib_dir / "app.jar"]
+        if plugins_dir.is_dir():
+            jars += sorted(plugins_dir.glob("keymap-*/lib/*.jar"))
+        # index built-in keymaps by BOTH the file stem and the <keymap name="">
+        # attribute inside (newer IDEs show "macOS" but ship "Mac OS X 10.5+.xml").
         self._jar_index: dict[str, tuple[Path, str]] = {}
-        for jar in self.jars:
-            if not jar.exists():
+        for jar in jars:
+            if not jar.is_file():
                 continue
             with zipfile.ZipFile(jar) as z:
                 for n in z.namelist():
                     m = re.fullmatch(r"keymaps/(.+)\.xml", n)
-                    if m:
-                        self._jar_index.setdefault(m.group(1), (jar, n))
+                    if not m:
+                        continue
+                    self._jar_index.setdefault(m.group(1), (jar, n))
+                    try:
+                        inner = ET.fromstring(z.read(n)).get("name")
+                    except ET.ParseError:
+                        inner = None
+                    if inner:
+                        self._jar_index.setdefault(inner, (jar, n))
+
+    # display-name -> shipped keymap name (the IDE UI renames some built-ins)
+    ALIASES = {
+        "macos": "Mac OS X 10.5+", "macos 10.5+": "Mac OS X 10.5+",
+        "mac os x 10.5+": "Mac OS X 10.5+", "os x 10.5+": "Mac OS X 10.5+",
+        "gnome": "Default for GNOME", "kde": "Default for KDE",
+        "xwin": "Default for XWin", "default for gnome/kde": "Default for XWin",
+        "windows": "$default", "default": "$default",
+    }
+
+    def canonical(self, name: str) -> str:
+        if (self.config_keymaps / f"{name}.xml").is_file() or name in self._jar_index:
+            return name
+        return self.ALIASES.get(name.strip().lower(), name)
+
+    def has(self, name: str) -> bool:
+        name = self.canonical(name)
+        return (self.config_keymaps / f"{name}.xml").is_file() or name in self._jar_index
 
     def get(self, name: str) -> str:
+        name = self.canonical(name)
         local = self.config_keymaps / f"{name}.xml"
         if local.is_file():
             return local.read_text(encoding="utf-8")
@@ -114,40 +274,42 @@ class KeymapSource:
             jar, entry = self._jar_index[name]
             with zipfile.ZipFile(jar) as z:
                 return z.read(entry).decode("utf-8")
-        raise SystemExit(
-            f"keymap '{name}' not found in {self.config_keymaps} or "
-            f"{[j.name for j in self.jars]}"
-        )
+        raise SystemExit(f"keymap '{name}' not found in {self.config_keymaps} or the IDE jars")
+
+    def user_keymaps(self) -> list[str]:
+        return sorted(p.stem for p in self.config_keymaps.glob("*.xml"))
+
+    def builtin_keymaps(self) -> list[str]:
+        return sorted(self._jar_index)
 
 
 def parse_actions(xml_text: str):
-    """id -> {'kbd': [(first, second|None), ...], 'mouse': [str, ...], 'empty': bool}"""
     root = ET.fromstring(xml_text)
     out: dict[str, dict] = {}
     for a in root.findall("action"):
         aid = a.get("id")
-        kbd = [
-            (ks.get("first-keystroke"), ks.get("second-keystroke"))
-            for ks in a.findall("keyboard-shortcut")
-        ]
+        kbd = [(ks.get("first-keystroke"), ks.get("second-keystroke"))
+               for ks in a.findall("keyboard-shortcut")]
         mouse = [ms.get("keystroke") for ms in a.findall("mouse-shortcut")]
         out[aid] = {"kbd": kbd, "mouse": mouse, "empty": not kbd and not mouse}
     return root.get("parent"), out
 
 
-def plugin_default_shortcuts(app: Path, keymap_names: set[str]):
-    """Shortcuts that plugins register for a keymap via their META-INF/*.xml
-    (`<action id><keyboard-shortcut keymap="$default"/>` etc.). These are real
-    IDE defaults but live outside keymaps/*.xml.
+def plugin_default_shortcuts(plugins_dir: Path, lib_dir: Path, keymap_names: set[str]):
+    """Shortcuts plugins register in META-INF/*.xml for a keymap (real IDE
+    defaults that live outside keymaps/*.xml).
 
-    Returns {keymap_name: {action_id: {"add": [(first, second|None)],
-                                       "remove": [(first, second|None)]}}}
+    -> {keymap_name: {action_id: {"add": [...], "remove": [...]}}}
     """
     acc: dict[str, dict[str, dict]] = {n: {} for n in keymap_names}
-    for jar in sorted(app.glob("Contents/**/*.jar")):
+    jars = []
+    if plugins_dir.is_dir():
+        jars += sorted(plugins_dir.glob("**/*.jar"))
+    jars += sorted(lib_dir.glob("**/*.jar"))   # incl. lib/modules/*.jar (VCS etc.)
+    for jar in jars:
         try:
             zf = zipfile.ZipFile(jar)
-        except zipfile.BadZipFile:
+        except (zipfile.BadZipFile, OSError):
             continue
         with zf:
             for entry in zf.namelist():
@@ -164,25 +326,22 @@ def plugin_default_shortcuts(app: Path, keymap_names: set[str]):
                     if not aid:
                         continue
                     for ks in node.findall("keyboard-shortcut"):
-                        km = ks.get("keymap")
-                        if km not in keymap_names:
+                        if ks.get("keymap") not in keymap_names:
                             continue
                         combo = (ks.get("first-keystroke"), ks.get("second-keystroke"))
                         if not combo[0]:
                             continue
-                        slot = acc[km].setdefault(aid, {"add": [], "remove": []})
+                        slot = acc[ks.get("keymap")].setdefault(aid, {"add": [], "remove": []})
                         bucket = "remove" if ks.get("remove") == "true" else "add"
                         if combo not in slot[bucket]:
                             slot[bucket].append(combo)
     return acc
 
 
-def resolve(name: str, src: KeymapSource, app: Path):
-    """Walk parent -> child, return (chain, merged actions dict, plugin_added count)."""
+def resolve(name: str, src: KeymapSource, plugins_dir: Path, lib_dir: Path):
     chain: list[str] = []
     layers: list[dict] = []
-    cur = name
-    seen = set()
+    cur, seen = name, set()
     while cur:
         if cur in seen:
             raise SystemExit(f"cycle in keymap parents at '{cur}'")
@@ -194,12 +353,10 @@ def resolve(name: str, src: KeymapSource, app: Path):
     chain.reverse()
     layers.reverse()  # root ($default) first
 
-    plugin = plugin_default_shortcuts(app, set(chain))
+    plugin = plugin_default_shortcuts(plugins_dir, lib_dir, set(chain))
     plugin_added = 0
-
     merged: dict[str, dict] = {}
     for layer_name, actions in zip(chain, layers):
-        # 1. plugin-registered defaults for this chain level (lowest precedence)
         for aid, slot in plugin.get(layer_name, {}).items():
             cur_kbd = merged.get(aid, {}).get("kbd", []) if aid in merged else []
             cur_kbd = [c for c in cur_kbd if c not in slot["remove"]]
@@ -208,7 +365,6 @@ def resolve(name: str, src: KeymapSource, app: Path):
                     cur_kbd.append(c)
                     plugin_added += 1
             merged.setdefault(aid, {"kbd": [], "mouse": []})["kbd"] = cur_kbd
-        # 2. the keymaps/<name>.xml layer overrides
         for aid, spec in actions.items():
             if spec["empty"]:
                 merged[aid] = {"kbd": [], "mouse": []}
@@ -217,11 +373,12 @@ def resolve(name: str, src: KeymapSource, app: Path):
     return chain, merged, plugin_added
 
 
-def write_resolved(name: str, chain: list[str], merged: dict[str, dict]) -> Path:
+def write_resolved(name: str, chain: list[str], merged: dict[str, dict]):
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "keymap"
     lines = [
-        "<!-- GENERATED by resolve_keymap.py - flattened from PhpStorm's own keymap files. -->",
+        "<!-- GENERATED by resolve_keymap.py - flattened from the IDE's own keymap files. -->",
         f"<!-- inheritance chain: {' -> '.join(chain)} -->",
-        f'<keymap version="1" name={quoteattr(name)}>',
+        f"<keymap version=\"1\" name={quoteattr(name)}>",
     ]
     kept = 0
     for aid in sorted(merged):
@@ -231,63 +388,77 @@ def write_resolved(name: str, chain: list[str], merged: dict[str, dict]) -> Path
         kept += 1
         lines.append(f"  <action id={quoteattr(aid)}>")
         for first, second in spec["kbd"]:
-            attrs = f' first-keystroke={quoteattr(first)}'
+            attrs = f" first-keystroke={quoteattr(first)}"
             if second:
-                attrs += f' second-keystroke={quoteattr(second)}'
+                attrs += f" second-keystroke={quoteattr(second)}"
             lines.append(f"    <keyboard-shortcut{attrs} />")
         for ms in spec["mouse"]:
             lines.append(f"    <mouse-shortcut keystroke={quoteattr(ms)} />")
         lines.append("  </action>")
     lines.append("</keymap>")
     OUT_DIR.mkdir(exist_ok=True)
-    out = OUT_DIR / f"{name}.resolved.xml"
+    out = OUT_DIR / f"{safe}.resolved.xml"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out, kept
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--product", default="PhpStorm", help="JetBrains product config prefix (default: PhpStorm)")
-    ap.add_argument("--keymap", help="user keymap name (default: the single *.xml in keymaps/, newest if several)")
-    ap.add_argument("--config-dir", help="explicit <Product><version> config dir (overrides --product autodetect)")
-    ap.add_argument("--app", help="explicit .app bundle (default: /Applications/<Product>*.app)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("--product", default="PhpStorm",
+                    help=f"JetBrains product (default: PhpStorm). Known: {', '.join(PRODUCTS)}")
+    ap.add_argument("--keymap", help="keymap name to resolve (default: the IDE's active keymap)")
+    ap.add_argument("--config-dir", help="explicit <Product><version> config dir")
+    ap.add_argument("--app", help="explicit IDE install dir / .app bundle")
     args = ap.parse_args()
 
-    product_dir = Path(args.config_dir).expanduser() if args.config_dir else newest_product_dir(args.product)
-    keymaps_dir = product_dir / "keymaps"
-    if not keymaps_dir.is_dir():
-        raise SystemExit(f"no keymaps/ under {product_dir}")
+    lib_dir, plugins_dir, data_dir_name = resolve_install(args.product, args.app)
+    config_dir = resolve_config_dir(args.product, args.config_dir, data_dir_name)
+    src = KeymapSource(config_dir / "keymaps", lib_dir, plugins_dir)
 
     if args.keymap:
-        name = args.keymap
-        if not (keymaps_dir / f"{name}.xml").is_file():
-            raise SystemExit(f"{name}.xml not in {keymaps_dir}")
+        name, how = args.keymap, "--keymap"
     else:
-        xmls = sorted(keymaps_dir.glob("*.xml"), key=lambda p: p.stat().st_mtime)
-        if not xmls:
-            raise SystemExit(f"no user keymaps in {keymaps_dir}")
-        if len(xmls) > 1:
-            print(f"note: {len(xmls)} user keymaps; using newest '{xmls[-1].stem}' "
-                  f"(others: {', '.join(p.stem for p in xmls[:-1])})", file=sys.stderr)
-        name = xmls[-1].stem
+        name = read_active_keymap(config_dir)
+        how = "active keymap"
+        if not name:
+            users = src.user_keymaps()
+            if len(users) == 1:
+                name, how = users[0], "only user keymap (active unknown)"
+            else:
+                raise SystemExit(
+                    "could not read the active keymap from "
+                    f"{config_dir/'options'} and there "
+                    + (f"are {len(users)} user keymaps ({', '.join(users)})"
+                       if users else "are no user keymaps")
+                    + " - pass --keymap <name> (built-in names work too, e.g. \"macOS\")"
+                )
 
-    app = find_app(args.product, args.app)
-    src = KeymapSource(keymaps_dir, app)
+    if not src.has(name):
+        raise SystemExit(
+            f"keymap '{name}' not found.\n"
+            f"  user keymaps : {', '.join(src.user_keymaps()) or '(none)'}\n"
+            f"  built-in     : {', '.join(src.builtin_keymaps())}"
+        )
+    name = src.canonical(name)
 
-    chain, merged, plugin_added = resolve(name, src, app)
+    chain, merged, plugin_added = resolve(name, src, plugins_dir, lib_dir)
     out, kept = write_resolved(name, chain, merged)
 
-    print(f"product : {product_dir.name}")
-    print(f"app     : {app}")
+    install_root = lib_dir.parent.parent if lib_dir.parent.name == "Contents" else lib_dir.parent
+    print(f"product : {args.product}")
+    print(f"config  : {config_dir}")
+    print(f"install : {install_root}")
+    print(f"keymap  : {name}   ({how})")
     print(f"chain   : {' -> '.join(chain)}")
-    print(f"actions : {kept} with shortcuts  ->  {out.relative_to(ROOT)}")
-    print(f"        : incl. {plugin_added} shortcuts from plugin descriptors")
-    # surface extended / unusual tokens so they are never a silent surprise
+    print(f"actions : {kept} with shortcuts (incl. {plugin_added} from plugin descriptors)")
+    print(f"output  : {out.relative_to(ROOT)}")
     ext = sorted({t for spec in merged.values() for f, s in spec["kbd"]
                   for t in re.findall(r"#[0-9a-fA-F]+", f or "")})
     if ext:
-        decoded = ", ".join(f"{t} = {chr(int(t[1:], 16) & 0xFFFF)!r}" for t in ext)
-        print(f"extended: {decoded}")
+        print("extended: " + ", ".join(
+            f"{t} = {chr(int(t[1:], 16) & 0xFFFF)!r}" for t in ext))
     return 0
 
 
