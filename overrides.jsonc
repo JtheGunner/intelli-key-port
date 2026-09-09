@@ -1,0 +1,134 @@
+// ============================================================================
+// Curated, hand-maintained layer for the PhpStorm -> VS Code keymap port.
+//
+//   entries              -> emitted verbatim at the BOTTOM of the final array,
+//                           so they always win over the generated block and the
+//                           k--kato extension. Keep this SMALL: only the things
+//                           that must beat the PhpStorm-faithful generated
+//                           bindings - terminal-signal guards, `-cmd` removals
+//                           so stock macOS combos do not double-fire, and the
+//                           handful of macOS-owned keys.
+//   manualActionCommand  -> IntelliJ actionId -> VS Code command, for actions
+//                           missing from (or stale in) vendor/ActionIdCommandMapping.json.
+//                           generate.py picks these up automatically.
+//   dropActions          -> IntelliJ actionIds to never emit (noise / duplicates).
+// ============================================================================
+{
+  "manualActionCommand": {
+    "$SelectAll": "editor.action.selectAll",
+    "EditSource": "editor.action.revealDefinition",
+    "GotoDeclaration": "editor.action.revealDefinition",
+    "GotoSuperMethod": "editor.action.goToImplementation",
+    "EditorSelectWord": "editor.action.smartSelect.grow",
+    "EditorUnSelectWord": "editor.action.smartSelect.shrink",
+    "EditorScrollUp": "scrollLineUp",
+    "EditorScrollDown": "scrollLineDown",
+    "ActivateTerminalToolWindow": "workbench.action.terminal.toggleTerminal",
+    "ActivateProjectToolWindow": "workbench.view.explorer",
+    "ActivateVersionControlToolWindow": "workbench.view.scm",
+    "ActivateStructureToolWindow": "outline.focus",
+    "NextOccurence": "editor.action.marker.next",
+    "PreviousOccurence": "editor.action.marker.prev",
+    "MethodUp": "editor.action.previousSelectionMatchFindAction",
+    "MethodDown": "editor.action.nextSelectionMatchFindAction",
+    "MoveStatementUp": "editor.action.moveLinesUpAction",
+    "MoveStatementDown": "editor.action.moveLinesDownAction",
+    "EditorToggleCase": "editor.action.transformToUppercase",
+    "CloseAllEditors": "workbench.action.closeAllEditors",
+    "CloseAllEditorsButActive": "workbench.action.closeOtherEditors",
+    "ReopenClosedTab": "workbench.action.reopenClosedEditor",
+    "Switcher": "workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup",
+    "SplitVertically": "workbench.action.splitEditor",
+    "SplitHorizontally": "workbench.action.splitEditorDown",
+    "Unsplit": "workbench.action.joinTwoGroups",
+    "NextWindow": "workbench.action.nextEditor",
+    "PreviousWindow": "workbench.action.previousEditor",
+    "ExpandAll": "editor.unfoldAll",
+    "CollapseAll": "editor.foldAll",
+    "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer"
+  },
+
+  "dropActions": [
+    "ExpandRegionRecursively",
+    "CollapseRegionRecursively",
+    "SearchEverywhere.NextTab",
+    "SearchEverywhere.PrevTab",
+    "CodeFloatingToolbar.GotoNextMenu",
+    "CodeFloatingToolbar.GotoPreviousMenu",
+    "com.anthropic.code.plugin.actions.OpenClaudeInTerminalAction",
+    "Terminal.ClearPrompt",
+    "CompareTwoFiles",
+    "Diff.ShowDiff"
+  ],
+
+  "entries": [
+    // ---- Terminal-signal guards -------------------------------------------------
+    // The generated block binds these on Ctrl for the editor. Re-assert them here
+    // with `!terminalFocus` so the integrated terminal keeps the literal control
+    // characters (Ctrl+C interrupt, Ctrl+D EOF, Ctrl+R history, ...).
+    { "key": "ctrl+c",       "command": "editor.action.clipboardCopyAction",  "when": "textInputFocus && !terminalFocus" },
+    { "key": "ctrl+x",       "command": "editor.action.clipboardCutAction",   "when": "textInputFocus && !terminalFocus && !editorReadonly" },
+    { "key": "ctrl+v",       "command": "editor.action.clipboardPasteAction", "when": "textInputFocus && !terminalFocus" },
+    { "key": "ctrl+a",       "command": "editor.action.selectAll",            "when": "textInputFocus && !terminalFocus" },
+    { "key": "ctrl+z",       "command": "undo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+shift+z", "command": "redo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+y",       "command": "editor.action.deleteLines",          "when": "textInputFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "editorFocus && !terminalFocus" },
+    { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "editorFocus && !terminalFocus" },
+    { "key": "ctrl+k",       "command": "git.commitAll",                     "when": "!terminalFocus && !inDebugMode" },
+    { "key": "ctrl+e",       "command": "workbench.action.openRecent",        "when": "!terminalFocus" },
+    { "key": "ctrl+u",       "command": "editor.action.goToImplementation",   "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+g",       "command": "workbench.action.gotoLine",          "when": "!terminalFocus && !findWidgetVisible" },
+    { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "editorTextFocus && !terminalFocus" },
+
+    // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
+    { "key": "cmd+c",        "command": "-editor.action.clipboardCopyAction",  "when": "textInputFocus" },
+    { "key": "cmd+x",        "command": "-editor.action.clipboardCutAction",   "when": "textInputFocus" },
+    { "key": "cmd+v",        "command": "-editor.action.clipboardPasteAction", "when": "textInputFocus" },
+    { "key": "cmd+a",        "command": "-editor.action.selectAll",            "when": "textInputFocus" },
+    { "key": "cmd+z",        "command": "-undo",                              "when": "textInputFocus && !editorReadonly" },
+    { "key": "shift+cmd+z",  "command": "-redo" },
+    { "key": "cmd+f",        "command": "-actions.find" },
+    { "key": "cmd+d",        "command": "-editor.action.addSelectionToNextFindMatch", "when": "editorFocus" },
+    { "key": "cmd+shift+l",  "command": "-editor.action.selectHighlights" },
+    { "key": "cmd+shift+k",  "command": "-editor.action.deleteLines" },
+    { "key": "cmd+p",        "command": "-workbench.action.quickOpen" },
+    { "key": "shift+cmd+p",  "command": "-workbench.action.showCommands" },
+    { "key": "cmd+shift+o",  "command": "-workbench.action.gotoSymbol" },
+    { "key": "cmd+b",        "command": "-workbench.action.toggleSidebarVisibility" },
+    { "key": "cmd+j",        "command": "-workbench.action.togglePanel" },
+    { "key": "cmd+w",        "command": "-workbench.action.closeActiveEditor" },
+    { "key": "shift+cmd+t",  "command": "-workbench.action.reopenClosedEditor" },
+    { "key": "cmd+n",        "command": "-workbench.action.files.newUntitledFile" },
+    { "key": "shift+cmd+n",  "command": "-workbench.action.newWindow" },
+    { "key": "cmd+/",    "command": "-editor.action.commentLine" },
+    { "key": "cmd+,",    "command": "-workbench.action.openSettings" },
+    { "key": "cmd+g",        "command": "-editor.action.nextMatchFindAction", "when": "editorFocus" },
+    { "key": "cmd+y",        "command": "-editor.action.previewDeclaration" },
+
+    // ---- Editor essentials on Ctrl (PhpStorm-faithful, no XML entry needed) ---
+    { "key": "ctrl+s",       "command": "workbench.action.files.save" },
+    { "key": "cmd+s",        "command": "-workbench.action.files.save" },
+    { "key": "ctrl+f",       "command": "actions.find", "when": "editorFocus || editorIsOpen" },
+    { "key": "ctrl+/",       "command": "editor.action.commentLine", "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+numpad_divide","command": "editor.action.commentLine", "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+,",   "command": "workbench.action.openSettings" },
+    { "key": "ctrl+alt+s",   "command": "-workbench.action.openSettings" },
+    { "key": "f2",           "command": "editor.action.marker.next", "when": "editorFocus" },
+    { "key": "shift+f2",     "command": "editor.action.marker.prev", "when": "editorFocus" },
+
+    // ---- Terminal: keep control chars in the shell; add only the safe verbs ---
+    { "key": "ctrl+shift+c", "command": "workbench.action.terminal.copySelection", "when": "terminalFocus && terminalHasBeenCreated && terminalTextSelected" },
+    { "key": "ctrl+shift+v", "command": "workbench.action.terminal.paste", "when": "terminalFocus && terminalHasBeenCreated" },
+    { "key": "shift+enter",  "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u001b\r" }, "when": "terminalFocus" },
+
+    // ---- Zoom (numpad, matches PhpStorm) -------------------------------------
+    { "key": "ctrl+numpad_add",       "command": "workbench.action.zoomIn" },
+    { "key": "ctrl+shift+numpad_add", "command": "workbench.action.zoomIn" },
+    { "key": "ctrl+numpad_subtract",  "command": "workbench.action.zoomOut" },
+    { "key": "ctrl+numpad0",          "command": "workbench.action.zoomReset" }
+  ]
+}
