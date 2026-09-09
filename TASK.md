@@ -1,7 +1,7 @@
 # Task: Windows-Navigation & IDE-Keybindings Port (Home/End, Ctrl+Arrows, Tab-Switch)
 
 ## Kontext & Ziel
-Im Rahmen des Setups für ein Windows-Tastaturlayout auf macOS (Schweizer Tastatur) sollen IDE-spezifische Tastenbelegungen **nicht** in Karabiner-Elements (`karabiner-windows-keyboard-mapping-macos`), sondern ausschliesslich über dieses Repository (`phpstorm-keymap-port`) verwaltet und portiert werden.
+Im Rahmen des Setups für ein Windows-Tastaturlayout auf macOS (Schweizer Tastatur) sollen IDE-spezifische Tastenbelegungen **nicht** in Karabiner-Elements (`karabiner-windows-keyboard-mapping-macos`), sondern ausschliesslich über dieses Repository (`intelli-key-port`) verwaltet und portiert werden.
 
 Ziel ist es, dass Standard-Windows-Navigations-Shortcuts konsistent sowohl im Editor-Fenster als auch in Text-Eingabefeldern (insbesondere in der Agenten-Chat-Ansicht von **AntiGravity IDE**) funktionieren und nach jedem IDE-Reload / Update erhalten bleiben.
 
@@ -49,7 +49,7 @@ In AntiGravity IDE ist das Chat-Inputfeld ein separates Widget. Mit dem Scope `t
 
 ---
 
-## Umsetzungsschritte in `phpstorm-keymap-port`
+## Umsetzungsschritte in `intelli-key-port`
 
 1. [ ] **`overrides.jsonc` aktualisieren**:
    - Die oben aufgeführten Keybindings in die `entries`-Sektion von `overrides.jsonc` einfügen.

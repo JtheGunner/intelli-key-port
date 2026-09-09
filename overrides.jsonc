@@ -1,5 +1,5 @@
 // ============================================================================
-// Curated, hand-maintained layer for the PhpStorm -> VS Code keymap port.
+// Curated, hand-maintained layer for the IntelliKeyPort keymap port (IntelliJ -> VS Code).
 //
 //   entries              -> emitted verbatim at the BOTTOM of the final array,
 //                           so they always win over the generated block and the
