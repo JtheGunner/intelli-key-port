@@ -98,18 +98,22 @@ IntelliKeyPort is a small set of plain-Python scripts plus **one**
 hand-maintained data file. `port.py` runs a three-stage pipeline:
 
 ```mermaid
-flowchart LR
-    IDE([🧠 IntelliJ IDE]):::src -->|active keymap| R[resolve_keymap.py]:::stage
-    R -->|"source/*.resolved.xml"| G["generate.py + overrides.jsonc"]:::stage
-    G -->|"keybindings.generated.json"| I[install.py]:::stage
-    I -->|write + backup| OUT([💻 VS Code · Cursor · Windsurf · …]):::dst
+flowchart TD
+    IDE([🧠 IntelliJ IDE<br/>active keymap]):::src
+    R["<b>resolve_keymap.py</b><br/>find the IDE · flatten the parent chain"]:::stage
+    X[("source/&lt;name&gt;.resolved.xml<br/><i>per-user · git-ignored</i>")]:::art
+    G["<b>generate.py</b> + <b>overrides.jsonc</b><br/>actions → commands · keystrokes → keys"]:::stage
+    K[("keybindings.generated.json + report.md<br/><i>per-user · git-ignored</i>")]:::art
+    I["<b>install.py</b><br/>back up · write · pick targets"]:::stage
+    OUT([💻 VS Code · Insiders · VSCodium<br/>Cursor · Windsurf · Antigravity]):::dst
 
-    classDef src fill:#6b57d2,color:#fff,stroke:#4b3aa8
-    classDef dst fill:#0ea5e9,color:#fff,stroke:#0369a1
-    classDef stage fill:#1f2430,color:#e6e6e6,stroke:#3a4152
+    IDE --> R --> X --> G --> K --> I --> OUT
+
+    classDef src fill:#6b57d2,color:#fff,stroke:#4b3aa8,stroke-width:1px
+    classDef dst fill:#0ea5e9,color:#fff,stroke:#0369a1,stroke-width:1px
+    classDef stage fill:#1f2430,color:#e6e6e6,stroke:#3a4152,stroke-width:1px
+    classDef art fill:#2b2f3a,color:#c8c8c8,stroke:#3a4152,stroke-width:1px,stroke-dasharray:4 3
 ```
-
-<sub>Each stage is also a standalone script — `port.py` just runs the three in order and stops on the first failure.</sub>
 
 ### 📂 The files
 
@@ -143,13 +147,13 @@ available shortcuts; it is three lists:
 
 | Key                               | What it does                                                                                                                                                                                   | Typical use                                                                                                                                                                                                                                                                                                                                        |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🥇&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards (`ctrl+c` only when the terminal is *not* focused, so the shell keeps <kbd>Ctrl</kbd> + <kbd>C</kbd>); `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire; deliberate choices like <kbd>Ctrl</kbd> + <kbd>Y</kbd> = redo, zoom on the numpad, <kbd>Shift</kbd> + <kbd>Enter</kbd> = terminal newline. Keep it small. |
+| 🥇&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards (`ctrl+c` only when the terminal is *not* focused, so the shell keeps <kbd>Ctrl</kbd>+<kbd>C</kbd>); `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire; deliberate choices like <kbd>Ctrl</kbd>+<kbd>Y</kbd> = redo, zoom on the numpad, <kbd>Shift</kbd>+<kbd>Enter</kbd> = terminal newline. Keep it small. |
 | ➕&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                                                                                                                                                                                                                                                 |
-| 🚫&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates (e.g. a second action that also wants <kbd>Ctrl</kbd> + <kbd>D</kbd>).                                                                                                                                                                                                                                                  |
+| 🚫&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates (e.g. a second action that also wants <kbd>Ctrl</kbd>+<kbd>D</kbd>).                                                                                                                                                                                                                                                  |
 
 **Why it exists:** some shortcuts are genuinely ambiguous once they leave the
-IDE. The integrated terminal needs <kbd>Ctrl</kbd> + <kbd>C</kbd> /
-<kbd>Ctrl</kbd> + <kbd>D</kbd> / <kbd>Ctrl</kbd> + <kbd>R</kbd>; macOS binds some
+IDE. The integrated terminal needs <kbd>Ctrl</kbd>+<kbd>C</kbd> /
+<kbd>Ctrl</kbd>+<kbd>D</kbd> / <kbd>Ctrl</kbd>+<kbd>R</kbd>; macOS binds some
 combos at the OS level; a few IntelliJ actions have two ids on the same key.
 `overrides.jsonc` records those decisions once, in one readable file, so every
 regeneration keeps them. After editing it, re-run `./port.py` (or
@@ -401,14 +405,14 @@ in `generate.py`.
 
 | Key                                                | This port                                         | Note                                                                                                                      |
 |----------------------------------------------------|---------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| <kbd>Ctrl</kbd> + <kbd>numpad</kbd> + <kbd>+</kbd> / <kbd>-</kbd> | zoom in / out                                     | fold-all loses the bare-numpad combo; **fold still works on <kbd>Ctrl</kbd> + <kbd>=</kbd> / <kbd>Ctrl</kbd> + <kbd>-</kbd>** |
-| <kbd>Ctrl</kbd> + <kbd>Y</kbd>                       | redo                                              | matches this keymap (`$Redo`); ```<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>``` also redoes                                  |
-| <kbd>Ctrl</kbd> + <kbd>S</kbd>                       | save current file                                 | the keymap puts *Save All* here; VS Code auto-save covers the rest                                                        |
-| <kbd>Ctrl</kbd> + <kbd>,</kbd>                       | Settings UI                                       | keymap also has <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd>                                                               |
-| <kbd>F7</kbd>                                      | Step Into (debug) / Next Diff                     | both from the keymap; no-op outside their context                                                                         |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>      | terminal: copy selection / editor: copy file path | different `when` contexts                                                                                                 |
-| <kbd>Shift</kbd> + <kbd>Enter</kbd>                  | terminal: send `ESC CR` / editor: new line below  | different `when` contexts                                                                                                 |
-| <kbd>Ctrl</kbd> + <kbd>§</kbd> (`[Backquote]`)       | comment line                                      | decoded from `ctrl #10000a7`; also on <kbd>Ctrl</kbd> + <kbd>/</kbd>                                                        |
+| `Ctrl + numpad +` `+` / `-` | zoom in / out                                     | fold-all loses the bare-numpad combo; **fold still works on `Ctrl + =` / `Ctrl + -`** |
+| `Ctrl + Y`                       | redo                                              | matches this keymap (`$Redo`); `Ctrl + Shift + Z` also redoes                                  |
+| `Ctrl + S`                       | save current file                                 | the keymap puts *Save All* here; VS Code auto-save covers the rest                                                        |
+| `Ctrl + ,`                       | Settings UI                                       | keymap also has `Ctrl + Alt + S`                                                               |
+| `F7`                                      | Step Into (debug) / Next Diff                     | both from the keymap; no-op outside their context                                                                         |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd>+<kbd>C</kbd>      | terminal: copy selection / editor: copy file path | different `when` contexts                                                                                                 |
+| <kbd>Shift</kbd>+<kbd>Enter</kbd>                  | terminal: send `ESC CR` / editor: new line below  | different `when` contexts                                                                                                 |
+| <kbd>Ctrl</kbd>+<kbd>§</kbd> (`[Backquote]`)       | comment line                                      | decoded from `ctrl #10000a7`; also on <kbd>Ctrl</kbd>+<kbd>/</kbd>                                                        |
 | 🖱️ mouse shortcuts (~14)                           | **not ported**                                    | `keybindings.json` has no mouse bindings — see `report.md`                                                                |
 
 ---
@@ -418,16 +422,15 @@ in `generate.py`.
 Reload each editor window, then spot-check with the **editor** focused (not the
 terminal):
 
-| Shortcut                                                                                                                      | Expected                          |
-|-------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| `Ctrl + D` · <kbd>Ctrl</kbd> + <kbd>Y</kbd>                                                                   | duplicate line · redo             |
-| <kbd>Ctrl</kbd> + <kbd>D</kbd> · <kbd>Ctrl</kbd> + <kbd>Y</kbd>                                                                   | duplicate line · redo             |
-| <kbd>Ctrl</kbd> + <kbd>W</kbd> · <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd>                                                  | expand · shrink selection         |
-| <kbd>Ctrl</kbd> + <kbd>B</kbd> · <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>B</kbd>                                                    | go to definition · implementation |
-| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>L</kbd> · <kbd>Ctrl</kbd> + <kbd>/</kbd>                                                    | reformat · comment line           |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd> · <kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd>  | Find Action · Go to Class / File  |
-| <kbd>Alt</kbd> + <kbd>1</kbd> / <kbd>3</kbd> / <kbd>9</kbd>                                                                     | Explorer / Search / SCM           |
-| terminal: <kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>Ctrl</kbd> + <kbd>D</kbd> <kbd>Ctrl</kbd> + <kbd>R</kbd> <kbd>Ctrl</kbd> + <kbd>P</kbd> | still hit the shell               |
+| Shortcut                                                          | Expected                          |
+|-------------------------------------------------------------------|-----------------------------------|
+| `Ctrl + D` · `Ctrl + Y`                                           | duplicate line · redo             |
+| `Ctrl + W` · `Ctrl + Shift + W`                                   | expand · shrink selection         |
+| `Ctrl + B` · `Ctrl + Alt + B`                                     | go to definition · implementation |
+| `Ctrl + Alt + L` · `Ctrl + /`                                     | reformat · comment line           |
+| `Ctrl + Shift + A` · `Ctrl + O` / `Ctrl + Shift + O` · `Ctrl + O` | Find Action · Go to Class / File  |
+| `Alt + ` `1` /  `2` /  `3`                                        | Explorer / Search / SCM           |
+| terminal: `Ctrl + C` `Ctrl + D` `Ctrl + R` `Ctrl + P`             | still hit the shell               |
 
 ---
 
