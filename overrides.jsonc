@@ -47,8 +47,6 @@
     "SplitVertically": "workbench.action.splitEditor",
     "SplitHorizontally": "workbench.action.splitEditorDown",
     "Unsplit": "workbench.action.joinTwoGroups",
-    "NextWindow": "workbench.action.nextEditor",
-    "PreviousWindow": "workbench.action.previousEditor",
     "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer"
   },
 
@@ -80,7 +78,17 @@
     "NextDiff",
 
     // Diff-viewer-only; collides with Switcher (Recent Files) on Ctrl+Shift+Tab.
-    "Diff.FocusOppositePane"
+    "Diff.FocusOppositePane",
+
+    // Tab switching on Alt+Left / Alt+Right (from PhpStorm NextTab/PreviousTab);
+    // re-assigned to Ctrl+Cmd+Left / Ctrl+Cmd+Right in entries below so Alt+Left/Right
+    // can be used for Windows-style word jumps.
+    "NextTab",
+    "PreviousTab",
+    "NextEditorTab",
+    "PreviousEditorTab",
+    "NextWindow",
+    "PreviousWindow"
   ],
 
   "entries": [
@@ -159,6 +167,32 @@
     { "key": "ctrl+numpad_add",       "command": "workbench.action.zoomIn" },
     { "key": "ctrl+shift+numpad_add", "command": "workbench.action.zoomIn" },
     { "key": "ctrl+numpad_subtract",  "command": "workbench.action.zoomOut" },
-    { "key": "ctrl+numpad0",          "command": "workbench.action.zoomReset" }
+    { "key": "ctrl+numpad0",          "command": "workbench.action.zoomReset" },
+
+    // ---- Windows Navigation Keys (Word & Line/Document Navigation) -----------
+    // In AGY IDE / VS Code on macOS with Karabiner [winkeys]:
+    // Ctrl+Left/Right is translated to Alt+Left/Right by Karabiner for all apps (including AGY IDE),
+    // allowing native word jump in web/input text boxes.
+    // In the Monaco editor, Alt+Left/Right drives cursorWordLeft/Right.
+    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "editorTextFocus && !terminalFocus" },
+    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "editorTextFocus && !terminalFocus" },
+    { "key": "alt+right",       "command": "cursorWordRight",         "when": "editorTextFocus && !terminalFocus" },
+    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "editorTextFocus && !terminalFocus" },
+
+    // Home / End / Ctrl+Home / Ctrl+End line and document navigation
+    { "key": "home",            "command": "cursorLineStart",         "when": "editorTextFocus && !terminalFocus" },
+    { "key": "shift+home",      "command": "cursorLineStartSelect",   "when": "editorTextFocus && !terminalFocus" },
+    { "key": "end",             "command": "cursorLineEnd",           "when": "editorTextFocus && !terminalFocus" },
+    { "key": "shift+end",       "command": "cursorLineEndSelect",     "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+home",       "command": "cursorTop",               "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+shift+home", "command": "cursorTopSelect",         "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+end",        "command": "cursorBottom",            "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+shift+end",  "command": "cursorBottomSelect",      "when": "editorTextFocus && !terminalFocus" },
+
+    // ---- Tab Navigation (moved to Ctrl+Cmd+Left/Right to avoid clash with word jump) ---
+    { "key": "ctrl+cmd+left",        "command": "workbench.action.previousEditor", "when": "!terminalFocus" },
+    { "key": "ctrl+cmd+right",       "command": "workbench.action.nextEditor",     "when": "!terminalFocus" },
+    { "key": "ctrl+cmd+shift+left",  "command": "workbench.action.previousEditor" },
+    { "key": "ctrl+cmd+shift+right", "command": "workbench.action.nextEditor" }
   ]
 }
