@@ -105,6 +105,55 @@ def needs_terminal_guard(key: str) -> bool:
     return bool(_TERMINAL_KEY_RE.match(key)) or key in _TERMINAL_KEYS
 
 
+def _when_terms(expr: str) -> set[str]:
+    return {t.strip() for t in (expr or "").split("&&") if t.strip()}
+
+
+def _when_disjoint(a: str, b: str) -> bool:
+    """True if two `when` clauses can never both be active (one needs `X`, the
+    other `!X`) - e.g. `terminalFocus` vs `!terminalFocus`."""
+    ta, tb = _when_terms(a), _when_terms(b)
+    return (any(t.startswith("!") and t[1:] in tb for t in ta)
+            or any(t.startswith("!") and t[1:] in ta for t in tb))
+
+
+def find_key_conflicts(generated: list[dict], base_entries: list[dict]):
+    """Keys bound to two or more *different* positive commands in the final file.
+
+    The `(command, key)` dedup elsewhere only catches an identical binding; it
+    says nothing when one key ends up driving two different commands. This does.
+
+    Returns (hard, soft):
+      hard - the clash is entirely inside the generated block; nobody has picked
+             a winner. Gets a stderr warning.
+      soft - overrides.jsonc also binds the key, so a human already chose. Only
+             reported.
+    `-command` removals and pairs with mutually exclusive `when` clauses are not
+    counted as conflicts.
+    """
+    from collections import defaultdict
+    slots: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
+    for origin, entries in (("generated", generated), ("overrides.jsonc", base_entries)):
+        for e in entries:
+            cmd = e.get("command", "")
+            if not cmd.startswith("-"):
+                slots[e["key"]].append((cmd, e.get("when", ""), origin))
+
+    hard, soft = [], []
+    for key, binds in sorted(slots.items()):
+        if len({c for c, _, _ in binds}) < 2:
+            continue
+        # keep only binds that actually overlap (non-disjoint `when`) another one
+        live = [x for i, x in enumerate(binds)
+                if any(not _when_disjoint(x[1], y[1])
+                       for j, y in enumerate(binds) if j != i)]
+        if len({c for c, _, _ in live}) < 2:
+            continue
+        bucket = soft if any(o == "overrides.jsonc" for _, _, o in live) else hard
+        bucket.append((key, binds))
+    return hard, soft
+
+
 def strip_jsonc(text: str) -> str:
     """Remove // line comments and /* */ block comments, keeping string literals intact."""
     out = []
@@ -349,6 +398,8 @@ def main(argv: list[str] | None = None) -> int:
 
     generated.sort(key=lambda e: (e["command"], e["key"]))
 
+    hard_conflicts, soft_conflicts = find_key_conflicts(generated, base_entries)
+
     src_rel = source_xml.relative_to(ROOT)
     header = (
         "// ============================================================================\n"
@@ -380,6 +431,16 @@ def main(argv: list[str] | None = None) -> int:
             "```\n" + "\n".join(rows) + "\n```\n" if rows else "_none_\n"
         )
 
+    def conflict_block(title, rows):
+        if not rows:
+            return f"## {title}  (0)\n\n_none_\n"
+        lines = []
+        for key, binds in rows:
+            lines.append(key)
+            for cmd, when, origin in binds:
+                lines.append(f"    {cmd}  [{when or 'always'}]  ({origin})")
+        return f"## {title}  ({len(rows)})\n\n```\n" + "\n".join(lines) + "\n```\n"
+
     OUT_REPORT.write_text(
         "# PhpStorm -> VS Code keymap port report\n\n"
         f"- source file: `{src_rel}`\n"
@@ -387,6 +448,10 @@ def main(argv: list[str] | None = None) -> int:
         f"- generated entries: **{len(generated)}**\n"
         f"- curated base entries (overrides.jsonc): **{len(base_entries)}**\n"
         f"- total in keybindings.generated.json: **{len(generated) + len(base_entries)}**\n\n"
+        + conflict_block("Key conflicts - no curated winner (resolve in overrides.jsonc)", hard_conflicts)
+        + "\n"
+        + conflict_block("Key conflicts - overrides.jsonc picks the winner", soft_conflicts)
+        + "\n"
         + block("Mapped -> emitted", rep_mapped)
         + "\n"
         + block("Already covered by base / extension (skipped)", rep_covered)
@@ -402,7 +467,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"generated {len(generated)} entries + {len(base_entries)} base -> {OUT_KEYBINDINGS.name}")
     print(f"report -> {OUT_REPORT.name}  "
           f"(unmapped={len(set(rep_unmapped))}, covered={len(set(rep_covered))}, "
-          f"badkey={len(set(rep_badkey))}, mouse={len(set(rep_mouse))})")
+          f"badkey={len(set(rep_badkey))}, mouse={len(set(rep_mouse))}, "
+          f"conflicts={len(hard_conflicts)}+{len(soft_conflicts)})")
+
+    if hard_conflicts:
+        print(f"WARNING: {len(hard_conflicts)} key(s) bound to 2+ commands with no "
+              f"curated winner (see {OUT_REPORT.name} 'Key conflicts'):", file=sys.stderr)
+        for key, binds in hard_conflicts:
+            cmds = ", ".join(sorted({c for c, _, _ in binds}))
+            print(f"  {key}  ->  {cmds}", file=sys.stderr)
+        print("  resolve by adding an entry to overrides.jsonc `entries`, or the "
+              "IntelliJ action to `dropActions`.", file=sys.stderr)
     return 0
 
 

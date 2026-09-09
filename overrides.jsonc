@@ -6,12 +6,18 @@
 //                           k--kato extension. Keep this SMALL: only the things
 //                           that must beat the PhpStorm-faithful generated
 //                           bindings - terminal-signal guards, `-cmd` removals
-//                           so stock macOS combos do not double-fire, and the
-//                           handful of macOS-owned keys.
+//                           so stock macOS combos do not double-fire, the
+//                           handful of macOS-owned keys, and deliberate
+//                           deviations from the faithful port (comment each one,
+//                           and drop the PhpStorm action it displaces below).
 //   manualActionCommand  -> IntelliJ actionId -> VS Code command, for actions
 //                           missing from (or stale in) vendor/ActionIdCommandMapping.json.
 //                           generate.py picks these up automatically.
-//   dropActions          -> IntelliJ actionIds to never emit (noise / duplicates).
+//   dropActions          -> IntelliJ actionIds to never emit (noise / duplicates,
+//                           or a key we deliberately reassign in `entries`).
+//
+// generate.py warns about any key it emits that ends up driving two different
+// commands with no decision here - see report.md "Key conflicts".
 // ============================================================================
 {
   "manualActionCommand": {
@@ -58,7 +64,10 @@
     "com.anthropic.code.plugin.actions.OpenClaudeInTerminalAction",
     "Terminal.ClearPrompt",
     "CompareTwoFiles",
-    "Diff.ShowDiff"
+    "Diff.ShowDiff",
+
+    // Ctrl+Y is Redo here (see `entries` below), not PhpStorm's "Delete Line".
+    "EditorDeleteLine"
   ],
 
   "entries": [
@@ -66,23 +75,26 @@
     // The generated block binds these on Ctrl for the editor. Re-assert them here
     // with `!terminalFocus` so the integrated terminal keeps the literal control
     // characters (Ctrl+C interrupt, Ctrl+D EOF, Ctrl+R history, ...).
-    { "key": "ctrl+c",       "command": "editor.action.clipboardCopyAction",  "when": "textInputFocus && !terminalFocus" },
-    { "key": "ctrl+x",       "command": "editor.action.clipboardCutAction",   "when": "textInputFocus && !terminalFocus && !editorReadonly" },
-    { "key": "ctrl+v",       "command": "editor.action.clipboardPasteAction", "when": "textInputFocus && !terminalFocus" },
-    { "key": "ctrl+a",       "command": "editor.action.selectAll",            "when": "textInputFocus && !terminalFocus" },
-    { "key": "ctrl+z",       "command": "undo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+shift+z", "command": "redo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+y",       "command": "redo",                              "when": "textInputFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "editorFocus && !terminalFocus" },
-    { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "editorFocus && !terminalFocus" },
+    { "key": "ctrl+c",       "command": "editor.action.clipboardCopyAction",  "when": "!terminalFocus" },
+    { "key": "ctrl+x",       "command": "editor.action.clipboardCutAction",   "when": "!terminalFocus && !editorReadonly" },
+    { "key": "ctrl+v",       "command": "editor.action.clipboardPasteAction", "when": "!terminalFocus" },
+    { "key": "ctrl+a",       "command": "editor.action.selectAll",            "when": "!terminalFocus" },
+    { "key": "ctrl+z",       "command": "undo",                              "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+shift+z", "command": "redo",                              "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "!terminalFocus" },
+    { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "!terminalFocus" },
+    { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "!editorReadonly && !terminalFocus" },
+    // Deliberate deviation from the faithful port: PhpStorm's Ctrl+Y is "Delete
+    // Line" (EditorDeleteLine, dropped in dropActions). This user wants the
+    // Windows / VS Code convention Ctrl+Y = Redo instead.
+    { "key": "ctrl+y",       "command": "redo",                              "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "!terminalFocus" },
+    { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "!terminalFocus" },
     { "key": "ctrl+k",       "command": "git.commitAll",                     "when": "!terminalFocus && !inDebugMode" },
     { "key": "ctrl+e",       "command": "workbench.action.openRecent",        "when": "!terminalFocus" },
-    { "key": "ctrl+u",       "command": "editor.action.goToImplementation",   "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+u",       "command": "editor.action.goToImplementation",   "when": "!terminalFocus" },
     { "key": "ctrl+g",       "command": "workbench.action.gotoLine",          "when": "!terminalFocus && !findWidgetVisible" },
-    { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "editorTextFocus && !terminalFocus" },
+    { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "!terminalFocus" },
 
     // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
     { "key": "cmd+c",        "command": "-editor.action.clipboardCopyAction",  "when": "textInputFocus" },
@@ -113,8 +125,8 @@
     { "key": "ctrl+s",       "command": "workbench.action.files.save" },
     { "key": "cmd+s",        "command": "-workbench.action.files.save" },
     { "key": "ctrl+f",       "command": "actions.find", "when": "editorFocus || editorIsOpen" },
-    { "key": "ctrl+/",       "command": "editor.action.commentLine", "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
-    { "key": "ctrl+numpad_divide","command": "editor.action.commentLine", "when": "editorTextFocus && !editorReadonly && !terminalFocus" },
+    { "key": "ctrl+/",       "command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+numpad_divide","command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
     { "key": "ctrl+,",   "command": "workbench.action.openSettings" },
     { "key": "ctrl+alt+s",   "command": "-workbench.action.openSettings" },
     { "key": "f2",           "command": "editor.action.marker.next", "when": "editorFocus" },
