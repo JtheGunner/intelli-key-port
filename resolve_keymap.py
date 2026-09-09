@@ -72,47 +72,76 @@ PRODUCTS = {
 # --------------------------------------------------------------------------- #
 # platform-aware locations
 # --------------------------------------------------------------------------- #
-def jetbrains_config_home() -> Path:
+def jetbrains_config_homes() -> list[Path]:
+    """Every place a JetBrains IDE keeps its <Product><version> config dir."""
+    home = Path.home()
+    out: list[Path] = []
     if IS_MAC:
-        return Path.home() / "Library" / "Application Support" / "JetBrains"
-    if IS_WIN:
-        base = os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming")
-        return Path(base) / "JetBrains"
-    base = os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")
-    return Path(base) / "JetBrains"
+        out.append(home / "Library" / "Application Support" / "JetBrains")
+    elif IS_WIN:
+        base = os.environ.get("APPDATA") or (home / "AppData" / "Roaming")
+        out.append(Path(base) / "JetBrains")
+    else:
+        base = os.environ.get("XDG_CONFIG_HOME") or (home / ".config")
+        out.append(Path(base) / "JetBrains")
+        # Flatpak IDEs write config into their sandbox, not ~/.config
+        for var in sorted(Path(home / ".var" / "app").glob("*")):
+            out += [var / "config" / "JetBrains", var / "data" / "JetBrains"]
+    return [d for d in out if d.is_dir()]
 
 
 def install_search_roots() -> list[Path]:
     home = Path.home()
     roots: list[Path] = []
     if IS_MAC:
-        roots += [Path("/Applications"), home / "Applications"]
-        roots += [jetbrains_config_home() / "Toolbox" / "apps"]
+        roots += [Path("/Applications"), home / "Applications",
+                  home / "Library" / "Application Support" / "JetBrains" / "Toolbox" / "apps"]
     elif IS_WIN:
         for env in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
             if os.environ.get(env):
                 roots.append(Path(os.environ[env]) / "JetBrains")
         if os.environ.get("LOCALAPPDATA"):
             la = Path(os.environ["LOCALAPPDATA"])
-            roots += [la / "Programs", la / "JetBrains" / "Toolbox" / "apps",
-                      la / "JetBrains"]
+            roots += [la / "Programs", la / "JetBrains" / "Toolbox" / "apps", la / "JetBrains"]
     else:
-        roots += [Path("/opt"), Path("/usr/local"), Path("/snap"),
-                  home / ".local" / "share" / "JetBrains" / "Toolbox" / "apps",
-                  home / ".local" / "share" / "applications"]
+        roots += [
+            Path("/opt"), Path("/usr/local"), Path("/usr/local/share/JetBrains"),
+            Path("/snap"),
+            home / "Applications",
+            home / ".local" / "share" / "JetBrains",
+            home / ".local" / "share" / "JetBrains" / "Toolbox" / "apps",
+            home / ".local" / "share" / "applications",
+            # Flatpak install trees (system + per-user)
+            Path("/var/lib/flatpak/app"),
+            home / ".local" / "share" / "flatpak" / "app",
+        ]
     return [r for r in roots if r.exists()]
 
 
-def _product_info_dirs(root: Path):
-    """Yield directories that directly contain a product-info.json, a few levels deep."""
-    for depth_glob in ("product-info.json",
-                       "*/product-info.json",
-                       "*/*/product-info.json",
-                       "*/*/*/product-info.json",
-                       "*/Contents/Resources/product-info.json",
-                       "*/*/*/Contents/Resources/product-info.json"):
-        for hit in root.glob(depth_glob):
-            yield hit
+def _product_info_dirs(root: Path, max_depth: int = 7):
+    """Yield every product-info.json at most `max_depth` levels below `root`.
+
+    macOS: only .app bundles carry it (fast targeted glob). Elsewhere a
+    depth-limited os.walk covers every layout in one pass - plain tar.gz
+    (<dir>/), JetBrains Toolbox (<app>/ch-0/<build>/), Snap (<snap>/current/),
+    Flatpak (<id>/current/active/files/[extra/...]/).
+    """
+    if IS_MAC:
+        for pat in ("*.app/Contents/Resources/product-info.json",
+                    "*/*.app/Contents/Resources/product-info.json",
+                    "*/*/*.app/Contents/Resources/product-info.json"):
+            yield from root.glob(pat)
+        return
+    root = root.resolve()
+    base_depth = len(root.parts)
+    skip = {".git", "jbr", "jre", "bin", "help", "license", "redist", "lib"}
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+        if "product-info.json" in filenames:
+            yield Path(dirpath) / "product-info.json"
+        if len(Path(dirpath).parts) - base_depth >= max_depth:
+            dirnames[:] = []
+            continue
+        dirnames[:] = [d for d in dirnames if d not in skip]
 
 
 def discover_installs(product: str):
@@ -185,17 +214,23 @@ def resolve_config_dir(product: str, config_override: str | None, data_dir_name:
         if not (p / "options").is_dir() and not (p / "keymaps").is_dir():
             raise SystemExit(f"--config-dir has no options/ or keymaps/: {p}")
         return p
-    home = jetbrains_config_home()
-    if data_dir_name and (home / data_dir_name).is_dir():
-        return home / data_dir_name
-    # fall back: newest <product>* dir with options/ or keymaps/
+    homes = jetbrains_config_homes()
+    # exact match via product-info.json -> dataDirectoryName
+    if data_dir_name:
+        for home in homes:
+            if (home / data_dir_name).is_dir():
+                return home / data_dir_name
+    # fall back: newest <product>* dir (with options/ or keymaps/) across all homes
     cands = sorted(
-        (d for d in home.glob(f"{product}*")
+        (d for home in homes for d in home.glob(f"{product}*")
          if (d / "options").is_dir() or (d / "keymaps").is_dir()),
         key=lambda d: d.stat().st_mtime,
     )
     if not cands:
-        raise SystemExit(f"no {product} config dir under {home}")
+        raise SystemExit(
+            f"no {product} config dir found under: "
+            + ", ".join(str(h) for h in homes)
+        )
     return cands[-1]
 
 

@@ -110,7 +110,20 @@ python3 resolve_keymap.py && python3 generate.py && python3 install.py
 
 No JetBrains IDE on this machine? Drop a raw *Settings → Keymap → gear →
 Export Keymap* `.xml` into `source/` (any name) and run `python3 generate.py`
-directly.
+directly — this fallback is pure Python and needs no IDE detection at all.
+
+### Platform support
+
+| | IDE discovery | Editor config dirs |
+|---|---|---|
+| **macOS** | `/Applications`, `~/Applications`, Toolbox | `~/Library/Application Support/<editor>/User` |
+| **Windows** | `Program Files\JetBrains`, `%LOCALAPPDATA%\Programs`, Toolbox | `%APPDATA%\<editor>\User` |
+| **Linux** | `/opt`, `/usr/local`, `/snap`, `~/Applications`, Toolbox, **Flatpak** (`/var/lib/flatpak`, `~/.local/share/flatpak`) | `~/.config/<editor>/User`, **Flatpak** `~/.var/app/<id>/config/…`, **Snap** `~/snap/<name>/current/.config/…` |
+
+Linux IDE discovery is a depth-limited directory walk (handles tar.gz, Toolbox
+`ch-0/<build>`, Snap and Flatpak layouts in one pass). Flatpak IDEs keep their
+config under `~/.var/app/<id>/config/JetBrains` — that is searched too.
+`--app` / `--config-dir` override discovery entirely.
 
 ## Known trade-offs (edit `overrides.jsonc` to change)
 

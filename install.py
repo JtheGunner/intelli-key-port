@@ -21,26 +21,45 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+SYSTEM = platform.system()
 
-# VS Code-family editors: config-folder base name -> friendly label
+# VS Code-family editors: config-folder name -> (label, flatpak id, snap name)
 EDITORS = {
-    "Code": "VS Code",
-    "Code - Insiders": "VS Code Insiders",
-    "VSCodium": "VSCodium",
-    "Cursor": "Cursor",
-    "Windsurf": "Windsurf",
-    "Antigravity": "Antigravity",
-    "Antigravity IDE": "Antigravity IDE",
+    "Code":            ("VS Code",           "com.visualstudio.code",  "code"),
+    "Code - Insiders": ("VS Code Insiders",  None,                     "code-insiders"),
+    "VSCodium":        ("VSCodium",          "com.vscodium.codium",    "codium"),
+    "Cursor":          ("Cursor",            None,                     None),
+    "Windsurf":        ("Windsurf",          None,                     None),
+    "Antigravity":     ("Antigravity",       None,                     None),
+    "Antigravity IDE": ("Antigravity IDE",   None,                     None),
 }
 
 
 def user_data_root() -> Path:
-    system = platform.system()
-    if system == "Darwin":
+    if SYSTEM == "Darwin":
         return Path.home() / "Library" / "Application Support"
-    if system == "Windows":
+    if SYSTEM == "Windows":
         return Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
     return Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+
+
+def candidate_user_dirs(folder: str, flatpak_id: str | None, snap_name: str | None):
+    """All <...>/<folder>/User dirs to consider for one editor, most-standard first."""
+    dirs = [user_data_root() / folder / "User"]
+    if SYSTEM == "Linux":
+        home = Path.home()
+        if flatpak_id:
+            dirs.append(home / ".var" / "app" / flatpak_id / "config" / folder / "User")
+        if snap_name:
+            dirs += [home / "snap" / snap_name / "current" / ".config" / folder / "User",
+                     home / "snap" / snap_name / "common" / ".config" / folder / "User"]
+    # de-dupe, keep order
+    seen, out = set(), []
+    for d in dirs:
+        if d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
 
 
 def main() -> int:
@@ -57,37 +76,37 @@ def main() -> int:
     if not src.is_file():
         raise SystemExit(f"{src} missing - run:  python3 generate.py")
 
-    root = user_data_root()
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     wanted = set(args.only) if args.only else None
-
-    wrote = skipped = 0
-    for folder, label in EDITORS.items():
-        if wanted is not None and folder not in wanted:
-            continue
-        user_dir = root / folder / "User"
-        if not user_dir.is_dir():
-            continue
-        dst = user_dir / "keybindings.json"
-        if args.dry_run:
-            print(f"would write : {dst}")
-            wrote += 1
-            continue
-        if dst.exists():
-            backup = dst.with_name(f"keybindings.json.bak-{stamp}")
-            shutil.copy2(dst, backup)
-            print(f"backup      : {backup}")
-        shutil.copyfile(src, dst)
-        print(f"wrote       : {dst}   ({label})")
-        wrote += 1
-
     if wanted:
-        missing = wanted - {f for f in EDITORS}
-        for m in missing:
+        for m in wanted - set(EDITORS):
             print(f"unknown editor name: {m}", file=sys.stderr)
 
+    wrote = 0
+    for folder, (label, flatpak_id, snap_name) in EDITORS.items():
+        if wanted is not None and folder not in wanted:
+            continue
+        for user_dir in candidate_user_dirs(folder, flatpak_id, snap_name):
+            if not user_dir.is_dir():
+                continue
+            dst = user_dir / "keybindings.json"
+            if args.dry_run:
+                print(f"would write : {dst}   ({label})")
+                wrote += 1
+                continue
+            if dst.exists():
+                backup = dst.with_name(f"keybindings.json.bak-{stamp}")
+                shutil.copy2(dst, backup)
+                print(f"backup      : {backup}")
+            shutil.copyfile(src, dst)
+            print(f"wrote       : {dst}   ({label})")
+            wrote += 1
+
     if wrote == 0:
-        print("no VS Code-family editors found under " + str(root), file=sys.stderr)
+        print("no VS Code-family editor config dirs found "
+              f"(looked under {user_data_root()}"
+              + (", ~/.var/app, ~/snap" if SYSTEM == "Linux" else "") + ")",
+              file=sys.stderr)
         return 1
     if not args.dry_run:
         print(f"\ndone - {wrote} editor(s). Reload each window "
