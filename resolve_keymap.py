@@ -144,6 +144,22 @@ def _product_info_dirs(root: Path, max_depth: int = 7):
         dirnames[:] = [d for d in dirnames if d not in skip]
 
 
+# Pre-2025.3 IDEs ship one lib/app.jar. 2025.3+/2026.x split the platform into
+# many lib/*.jar module jars and drop app.jar entirely (built-in keymaps moved
+# to lib/intellij.platform.ide.impl.jar). Accept both layouts, and stay lenient
+# for future repackagings - product-info.json already proved this is the IDE.
+CORE_JARS = ("app.jar", "intellij.platform.ide.impl.jar")
+
+
+def is_ide_lib(lib_dir: Path) -> bool:
+    """True if `lib_dir` looks like a JetBrains IDE's lib/ directory."""
+    if not lib_dir.is_dir():
+        return False
+    if any((lib_dir / n).is_file() for n in CORE_JARS):
+        return True
+    return any(lib_dir.glob("*.jar"))
+
+
 def discover_installs(product: str):
     """Return [(version_tuple, install_dir, lib_dir, plugins_dir, data_dir_name), ...]."""
     names = PRODUCTS.get(product, (product,))
@@ -165,7 +181,7 @@ def discover_installs(product: str):
                 home = info_path.parent
                 install_dir = home
             lib = home / "lib"
-            if not (lib / "app.jar").is_file():
+            if not is_ide_lib(lib):
                 continue
             ver = tuple(int(x) for x in re.findall(r"\d+", info.get("version", "0"))[:4]) or (0,)
             found[install_dir] = (ver, install_dir, lib, home / "plugins",
@@ -180,7 +196,7 @@ def resolve_install(product: str, app_override: str | None):
             raise SystemExit(f"--app not found: {hint}")
         for base in (hint, hint / "Contents", *sorted(hint.glob("*/Contents")),
                      *sorted(hint.glob("*")), *sorted(hint.glob("*/*"))):
-            if (base / "lib" / "app.jar").is_file():
+            if is_ide_lib(base / "lib"):
                 data = ""
                 for name in ("Resources/product-info.json", "product-info.json",
                              "../product-info.json"):
@@ -192,7 +208,7 @@ def resolve_install(product: str, app_override: str | None):
                             pass
                         break
                 return base / "lib", base / "plugins", data
-        raise SystemExit(f"no lib/app.jar under {hint}")
+        raise SystemExit(f"no IDE lib/ directory found under {hint}")
     installs = discover_installs(product)
     if not installs:
         raise SystemExit(
@@ -260,7 +276,19 @@ class KeymapSource:
 
     def __init__(self, config_keymaps: Path, lib_dir: Path, plugins_dir: Path):
         self.config_keymaps = config_keymaps
-        jars = [lib_dir / "app.jar"]
+        # Built-in keymaps: lib/app.jar (pre-2025.3) or, since the platform
+        # split, lib/intellij.platform.ide.impl.jar. Fall back to scanning
+        # every lib jar for a keymaps/ entry if neither is where we expect.
+        jars = [lib_dir / n for n in CORE_JARS if (lib_dir / n).is_file()]
+        if not jars and lib_dir.is_dir():
+            for jar in sorted(lib_dir.glob("*.jar")):
+                try:
+                    with zipfile.ZipFile(jar) as z:
+                        if any(re.fullmatch(r"keymaps/.+\.xml", n) for n in z.namelist()):
+                            jars.append(jar)
+                            break
+                except (zipfile.BadZipFile, OSError):
+                    continue
         if plugins_dir.is_dir():
             jars += sorted(plugins_dir.glob("keymap-*/lib/*.jar"))
         # index built-in keymaps by BOTH the file stem and the <keymap name="">
