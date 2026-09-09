@@ -88,6 +88,80 @@ matching the resolved keymap) and wins because user keybindings load after
 extension keybindings. To pull more actions onto Ctrl, add them to
 `manualActionCommand` in `overrides.jsonc` and re-generate.
 
+## What ends up in `keybindings.json`
+
+**`keybindings.json` is a *delta* file, not a full list.** VS Code ships
+hundreds of default bindings and the k--kato extension adds ~220 more; your
+`keybindings.json` only **adds, removes or overrides** on top of those.
+`keybindings.generated.json` *is* that file — `install.py` copies it in
+verbatim (replacing whatever was there; the old one is kept as
+`keybindings.json.bak-<timestamp>`).
+
+It has two blocks, marked by `// ----` comments:
+
+| Block | Roughly | What each line is |
+|---|---|---|
+| **generated** | ~120 | One entry per keymap action that (a) has a VS Code command in the mapping tables **and** (b) sits on a *different* key than the VS Code / k--kato default. `{ "key", "command" }` — plus `"when": "!terminalFocus"` on bare `ctrl+<letter>` so the integrated terminal keeps its control chars. |
+| **overrides.jsonc `entries`** | ~55 | The curated hand-layer, appended **last** so it beats both the generated block and the extension. |
+
+**A shortcut that is *not* in the file is not "missing".** It just has no
+custom binding, so the VS Code default (or the extension's) still applies —
+e.g. `ctrl+shift+p` works without an entry because it is already the VS Code
+default. What is genuinely **not reproduced** is listed in `report.md`:
+
+- **~340** keymap actions under *"No VS Code command mapping"* — no VS Code
+  equivalent command (or none in the mapping tables). Their keystroke is
+  left to whatever VS Code / the extension already do with it.
+- **~14** mouse shortcuts — `keybindings.json` cannot express mouse bindings.
+- extended keys that could not be decoded (usually 0).
+
+### `overrides.jsonc` — the curated layer
+
+Not a catalogue of "available" shortcuts; it is three lists that steer the
+generator and the final file:
+
+| Key | Purpose |
+|---|---|
+| `entries` | Literal keybinding rules appended **last** (they win over everything). The delicate stuff: terminal-signal guards (`ctrl+c` only `!terminalFocus` so the shell keeps Ctrl+C), `-cmd+x` removals so the macOS default doesn't *also* fire, and a few deliberate choices (`ctrl+y`=redo, zoom on numpad, `shift+enter`=terminal newline). |
+| `manualActionCommand` | `IntelliJ actionId → VS Code command`, filling gaps / fixing stale entries in the vendored k--kato table. Only feeds the generator, so *more* actions get mapped. |
+| `dropActions` | IntelliJ actionIds the generator must never emit (noise, duplicates such as `Diff.ShowDiff` on `ctrl+d`). |
+
+### Keeping your own extra shortcuts
+
+The tool only ports what is in your **JetBrains keymap**. It never invents
+VS Code-only bindings, and — because `install.py` replaces the whole file —
+a binding you added by hand in VS Code's own `keybindings.json` is
+**overwritten** on the next run (recoverable from the `.bak-<timestamp>`).
+
+To keep a personal binding permanently, add it to `overrides.jsonc` →
+`entries` (VS Code syntax: `alt`, not `opt`). Example — *Accessible Diff
+Viewer: Go to Next Difference*, a VS Code-native command with no JetBrains
+equivalent:
+
+```jsonc
+{ "key": "ctrl+shift+alt+h", "command": "editor.action.accessibleDiffViewer.next", "when": "accessibleDiffViewerVisible" }
+```
+
+Find a command's exact id in **Preferences: Open Keyboard Shortcuts** →
+right-click the row → *Copy Command ID*. After editing `overrides.jsonc`,
+re-run `./port.py` (or `./port.py --skip-resolve` to skip the IDE read).
+
+## Files
+
+| Tracked in git | |
+|---|---|
+| `port.py`, `resolve_keymap.py`, `generate.py`, `install.py` | the tool |
+| `overrides.jsonc` | curated layer (edit this) |
+| `vendor/ActionIdCommandMapping.json`, `vendor/KeystrokeKeyMapping.json`, `vendor/default-Windows-VSCode.json` | pinned k--kato **v1.7.7** resources — action↔command table, key-token table, and the "already shipped by the extension" skip-set |
+| `README.md`, `source/README.md` | docs |
+
+| Created by `./port.py` (git-ignored, per-user) | Stage | Purpose |
+|---|---|---|
+| `source/<active-keymap>.resolved.xml` | resolve | the IDE's active keymap, flattened with its full parent chain + plugin defaults — the single input to `generate.py` |
+| `keybindings.generated.json` | generate | the deployable file (generated block + `overrides.jsonc` entries) |
+| `report.md` | generate | audit: mapped / already-covered / no-command / untranslatable key / mouse |
+| `<editor>/User/keybindings.json.bak-<timestamp>` | install | backup of each editor's previous keybindings |
+
 ## Usage
 
 One command does everything — resolve the active keymap, generate, install:
