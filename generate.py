@@ -8,14 +8,14 @@ Pipeline
 1. Parse the PhpStorm keymap export in `source/` (the single `*.xml` whose root
    is `<keymap>`; file name does not matter - see resolve_source_xml()).
 2. Translate every IntelliJ action id -> VS Code command via
-   `vendor/ActionIdCommandMapping.json` (shipped by the
-   `k--kato.intellij-idea-keybindings` extension) plus `overrides.jsonc`
-   -> `manualActionCommand`.
+   `ActionIdCommandMapping.json` from the installed
+   `k--kato.intellij-idea-keybindings` extension (see kkato.py; falls back to
+   `vendor/kkato/`) plus `overrides.jsonc` -> `manualActionCommand`.
 3. Translate every AWT keystroke token -> VS Code key token via
-   `vendor/KeystrokeKeyMapping.json` plus a few hard-coded rules.
+   `KeystrokeKeyMapping.json` (same source) plus a few hard-coded rules.
 4. Drop anything already provided identically by the curated base
    (`overrides.jsonc` -> `entries`) or by the extension's shipped bindings
-   (`vendor/default-Windows-VSCode.json`).
+   (`default/<OS>/VSCode.json`, matched to this platform).
 5. Emit `keybindings.generated.json`:
       <header>
       [ ...generated entries...,
@@ -43,9 +43,10 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import kkato
+
 ROOT = Path(__file__).resolve().parent
 SOURCE_DIR = ROOT / "source"
-VENDOR = ROOT / "vendor"
 OVERRIDES_PATH = ROOT / "overrides.jsonc"
 OUT_KEYBINDINGS = ROOT / "keybindings.generated.json"
 OUT_REPORT = ROOT / "report.md"
@@ -88,9 +89,20 @@ EXTENDED_CHAR_KEY = {
 MODIFIERS = {"ctrl", "control", "shift", "alt", "meta"}
 MOD_TRANSLATE = {"meta": "cmd", "control": "ctrl"}  # ctrl/shift/alt pass through unchanged
 
-# Bare Ctrl+<letter> chords that a shell/readline needs; generated editor
-# bindings on these get a `!terminalFocus` guard.
-TERMINAL_COLLIDING_KEY = re.compile(r"ctrl\+[a-z]")
+# Chords a shell / the integrated terminal needs for itself; generated editor
+# bindings on these get a `!terminalFocus` guard so they only apply in editors.
+_TERMINAL_KEY_RE = re.compile(r"^(?:ctrl|alt)\+[a-z]$")   # readline control / meta chars
+_TERMINAL_KEYS = frozenset((
+    "ctrl+left", "ctrl+right", "ctrl+shift+left", "ctrl+shift+right",
+    "alt+left", "alt+right", "alt+shift+left", "alt+shift+right",
+    "ctrl+backspace", "ctrl+delete", "alt+backspace", "alt+delete",
+    "ctrl+home", "ctrl+end", "shift+pageup", "shift+pagedown",
+    "ctrl+insert", "shift+insert", "shift+delete",          # X11-style clipboard
+))
+
+
+def needs_terminal_guard(key: str) -> bool:
+    return bool(_TERMINAL_KEY_RE.match(key)) or key in _TERMINAL_KEYS
 
 
 def strip_jsonc(text: str) -> str:
@@ -134,8 +146,8 @@ def load_jsonc(path: Path):
     return json.loads(strip_jsonc(path.read_text(encoding="utf-8")))
 
 
-def load_key_map() -> dict[str, str | None]:
-    raw = json.loads((VENDOR / "KeystrokeKeyMapping.json").read_text(encoding="utf-8"))
+def load_key_map(res_dir: Path) -> dict[str, str | None]:
+    raw = json.loads((res_dir / "KeystrokeKeyMapping.json").read_text(encoding="utf-8"))
     m: dict[str, str | None] = {}
     for row in raw:
         m[row["intellij"].strip().lower()] = row["vscode"]
@@ -143,8 +155,8 @@ def load_key_map() -> dict[str, str | None]:
     return m
 
 
-def load_action_map(manual: dict[str, str]) -> dict[str, list[str]]:
-    raw = json.loads((VENDOR / "ActionIdCommandMapping.json").read_text(encoding="utf-8"))
+def load_action_map(res_dir: Path, manual: dict[str, str]) -> dict[str, list[str]]:
+    raw = json.loads((res_dir / "ActionIdCommandMapping.json").read_text(encoding="utf-8"))
     m: dict[str, list[str]] = {}
     for row in raw:
         m.setdefault(row["intellij"], [])
@@ -268,17 +280,23 @@ def main(argv: list[str] | None = None) -> int:
     source_xml = resolve_source_xml()
     print(f"source: {source_xml.relative_to(ROOT)}")
 
+    res_dir, kk_ver, kk_src = kkato.resolve()
+    print(f"k--kato: {kk_src}  v{kk_ver}")
+    if kk_src.startswith("installed") and kk_ver != kkato.vendored_version():
+        print(f"  note: vendor/kkato is pinned at v{kkato.vendored_version()} - "
+              f"run `./port.py --sync-vendor` to refresh the offline fallback",
+              file=sys.stderr)
+
     overrides = load_jsonc(OVERRIDES_PATH)
     manual_action_command = overrides.get("manualActionCommand", {})
     base_entries = overrides.get("entries", [])
     drop_actions = set(overrides.get("dropActions", []))
 
-    key_map = load_key_map()
-    action_map = load_action_map(manual_action_command)
+    key_map = load_key_map(res_dir)
+    action_map = load_action_map(res_dir, manual_action_command)
 
-    ext_shipped = json.loads(
-        (VENDOR / "default-Windows-VSCode.json").read_text(encoding="utf-8")
-    )
+    skip_set = kkato.skip_set_path(res_dir)
+    ext_shipped = json.loads(skip_set.read_text(encoding="utf-8")) if skip_set.is_file() else []
     covered = {(e.get("command"), e.get("key")) for e in ext_shipped}
     covered |= {(e.get("command"), e.get("key")) for e in base_entries}
 
@@ -321,10 +339,10 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 emitted_pairs.add(pair)
                 entry = {"key": vkey, "command": command}
-                # A bare Ctrl+<letter> is a readline control character. Without a
-                # guard the editor binding would swallow it in the integrated
-                # terminal (Ctrl+R history, Ctrl+P prev, Ctrl+T transpose, ...).
-                if TERMINAL_COLLIDING_KEY.fullmatch(vkey):
+                # Keys the shell / integrated terminal needs for itself (readline
+                # control chars, word motion, X11 clipboard) get a guard so the
+                # editor binding never swallows them in the terminal.
+                if needs_terminal_guard(vkey):
                     entry["when"] = "!terminalFocus"
                 generated.append(entry)
                 rep_mapped.append(f"{command}  <-  {vkey}  ({aid})")

@@ -309,7 +309,13 @@ class KeymapSource:
             jar, entry = self._jar_index[name]
             with zipfile.ZipFile(jar) as z:
                 return z.read(entry).decode("utf-8")
-        raise SystemExit(f"keymap '{name}' not found in {self.config_keymaps} or the IDE jars")
+        raise SystemExit(
+            f"keymap '{name}' not found (referenced as a parent or via --keymap).\n"
+            f"  user keymaps : {', '.join(self.user_keymaps()) or '(none)'}\n"
+            f"  built-in     : {', '.join(self.builtin_keymaps())}\n"
+            "  If this is a plugin keymap (e.g. a ReSharper/VS keymap in Rider), make sure\n"
+            "  that plugin is installed in the IDE, or pass --keymap with a resolvable name."
+        )
 
     def user_keymaps(self) -> list[str]:
         return sorted(p.stem for p in self.config_keymaps.glob("*.xml"))

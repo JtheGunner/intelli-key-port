@@ -9,8 +9,8 @@ the IDE's own keymap files rather than a third-party export. Works on
 Nothing here is specific to one machine or user: every path is derived at
 runtime from the OS + the IDE's `product-info.json`. The per-user build
 outputs (`source/*.resolved.xml`, `keybindings.generated.json`, `report.md`)
-are git-ignored; only the code, `overrides.jsonc` and pinned `vendor/` files
-are tracked.
+are git-ignored; only the code, `overrides.jsonc` and the pinned `vendor/kkato/`
+fallback are tracked.
 
 ## Why the naive routes failed
 
@@ -37,9 +37,10 @@ resolve_keymap.py
         ▼
 source/<name>.resolved.xml     flat, fully-inherited keymap (per-user, git-ignored)
         ▼
-generate.py  ──uses──►  vendor/ActionIdCommandMapping.json   (IntelliJ action → VS Code command)
-                        vendor/KeystrokeKeyMapping.json       (AWT key token → VS Code key)
-                        vendor/default-Windows-VSCode.json    ("already shipped by extension")
+generate.py  ──uses k--kato's own resources (installed extension, else vendor/kkato/):
+                        ActionIdCommandMapping.json     (IntelliJ action → VS Code command)
+                        KeystrokeKeyMapping.json        (AWT key token → VS Code key)
+                        default/<OS>/VSCode.json        ("already shipped by the extension" skip-set)
         │  • decodes #100XXXX extended keys · !terminalFocus-guards bare ctrl+<letter>
         ├─ overrides.jsonc   curated layer: terminal-signal guards, `-cmd` removals,
         │                    stale/missing action→command fixes, drop-list  (appended LAST → wins)
@@ -55,9 +56,15 @@ install.py   →  <user-data>/<editor>/User/keybindings.json      (timestamped b
 hand-dropped `source/*.xml` with a `<keymap>` root (a raw export still works,
 it just carries the exporter's `UNKNOWN` bug).
 
-`vendor/` files are copied from `k--kato.intellij-idea-keybindings` **v1.7.7**
-(<https://github.com/kasecato/vscode-intellij-idea-keybindings>) so the
-generator is self-contained and version-pinned.
+The three mapping resources come from
+`k--kato.intellij-idea-keybindings` (<https://github.com/kasecato/vscode-intellij-idea-keybindings>).
+Since that extension is installed into every target editor anyway,
+`generate.py` reads them **live from the newest installed copy** and matches
+the skip-set to this OS. `vendor/kkato/` is a pinned fallback (with a
+`VERSION` file) for a fresh checkout / CI / the raw-export path; when the
+installed version differs from the pin, the build prints a one-line note.
+`./port.py --sync-vendor` refreshes `vendor/kkato/` from the installed
+extension.
 
 Extended key codes (`#100XXXX`) are decoded to their character and mapped to a
 VS Code **scan-code** token (`§`/`°` → `[Backquote]`, ISO `<`/`>` →
@@ -101,7 +108,7 @@ It has two blocks, marked by `// ----` comments:
 
 | Block | Roughly | What each line is |
 |---|---|---|
-| **generated** | ~120 | One entry per keymap action that (a) has a VS Code command in the mapping tables **and** (b) sits on a *different* key than the VS Code / k--kato default. `{ "key", "command" }` — plus `"when": "!terminalFocus"` on bare `ctrl+<letter>` so the integrated terminal keeps its control chars. |
+| **generated** | ~135 | One entry per keymap action that (a) has a VS Code command in the mapping tables **and** (b) sits on a *different* key than the VS Code / k--kato default for this OS. `{ "key", "command" }` — plus `"when": "!terminalFocus"` on keys the shell needs (`ctrl`/`alt`+letter, word motion, `ctrl+ins` … ). |
 | **overrides.jsonc `entries`** | ~55 | The curated hand-layer, appended **last** so it beats both the generated block and the extension. |
 
 **A shortcut that is *not* in the file is not "missing".** It just has no
@@ -150,9 +157,12 @@ re-run `./port.py` (or `./port.py --skip-resolve` to skip the IDE read).
 
 | Tracked in git | |
 |---|---|
-| `port.py`, `resolve_keymap.py`, `generate.py`, `install.py` | the tool |
+| `port.py` | one-shot driver (resolve → generate → install) |
+| `resolve_keymap.py`, `generate.py`, `install.py` | the three stages, each runnable alone |
+| `kkato.py` | locates the k--kato extension's resources (installed, else `vendor/kkato/`) |
+| `sync_vendor.py` | refreshes `vendor/kkato/` from the installed extension (`./port.py --sync-vendor`) |
 | `overrides.jsonc` | curated layer (edit this) |
-| `vendor/ActionIdCommandMapping.json`, `vendor/KeystrokeKeyMapping.json`, `vendor/default-Windows-VSCode.json` | pinned k--kato **v1.7.7** resources — action↔command table, key-token table, and the "already shipped by the extension" skip-set |
+| `vendor/kkato/` | pinned k--kato resources + `VERSION` — offline fallback for the three mapping tables |
 | `README.md`, `source/README.md` | docs |
 
 | Created by `./port.py` (git-ignored, per-user) | Stage | Purpose |
@@ -183,6 +193,7 @@ All options are flat; `port.py` routes each to the right stage:
 ./port.py --file other.json            # → install   a different keybindings file
 ./port.py --skip-install               # stop after generate
 ./port.py --skip-resolve               # reuse the existing source/*.resolved.xml
+./port.py --sync-vendor                # refresh vendor/kkato/ from the installed extension, then exit
 ```
 
 A step that fails stops the chain. Each stage also runs on its own, same options:
@@ -191,6 +202,7 @@ A step that fails stops the chain. Each stage also runs on its own, same options
 python3 resolve_keymap.py [--product … --keymap … --app … --config-dir …]
 python3 generate.py
 python3 install.py        [--only NAME … --dry-run --file PATH]
+python3 sync_vendor.py
 ```
 
 No JetBrains IDE on this machine? Drop a raw *Settings → Keymap → gear →
@@ -213,8 +225,9 @@ config under `~/.var/app/<id>/config/JetBrains` — that is searched too.
 
 ## Known trade-offs (edit `overrides.jsonc` to change)
 
-Generated bare `ctrl+<letter>` bindings carry a `!terminalFocus` guard so the
-integrated terminal keeps its readline control chars (Ctrl+R, Ctrl+P, …).
+Generated bindings on keys the shell needs (`ctrl`/`alt`+letter, `ctrl+left`/
+`ctrl+right`, `ctrl+backspace`, `ctrl+ins`, …) carry a `!terminalFocus` guard,
+so the integrated terminal keeps its readline / word-motion / clipboard keys.
 `overrides.jsonc` entries win over the generated block.
 
 | Key | This port | Note |
@@ -243,4 +256,4 @@ Reload each editor window, then spot-check (editor focused, **not** the terminal
 - terminal: `ctrl+c`, `ctrl+d`, `ctrl+r`, `ctrl+p` still hit the shell
 
 Then **Preferences: Open Keyboard Shortcuts**, filter `@source:user` — a full
-list (~177 here), not a dozen.
+list (~190 here), not a dozen.

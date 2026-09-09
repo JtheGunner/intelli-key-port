@@ -10,11 +10,13 @@ VS Code-family editor found.
     ./port.py --only Code --dry-run  # (install) restrict / preview
     ./port.py --skip-install         # stop after generate
     ./port.py --skip-resolve         # reuse the existing source/*.resolved.xml
+    ./port.py --sync-vendor          # refresh vendor/kkato/ from the installed extension, then exit
 
 Each step is still runnable on its own:
     python3 resolve_keymap.py [--product ... --keymap ... --app ... --config-dir ...]
     python3 generate.py
     python3 install.py       [--only NAME ... --dry-run --file PATH]
+    python3 sync_vendor.py
 
 `--dry-run` previews the install only; resolve/generate always run (they just
 rewrite the git-ignored build artifacts).
@@ -31,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate            # noqa: E402
 import install             # noqa: E402
 import resolve_keymap      # noqa: E402
+import sync_vendor         # noqa: E402
 
 
 def _run(title: str, fn, argv: list[str]) -> None:
@@ -68,11 +71,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
                         help="reuse the existing source/*.resolved.xml")
     g_flow.add_argument("--skip-install", action="store_true",
                         help="stop after generate")
+    g_flow.add_argument("--sync-vendor", action="store_true",
+                        help="refresh vendor/kkato/ from the installed extension, then exit")
     return ap
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
+
+    if args.sync_vendor:
+        _run("sync-vendor", sync_vendor.main, [])
+        return 0
 
     resolve_argv: list[str] = []
     for flag, val in (("--product", args.product), ("--keymap", args.keymap),
