@@ -98,11 +98,17 @@ IntelliKeyPort is a small set of plain-Python scripts plus **one**
 hand-maintained data file. `port.py` runs a three-stage pipeline:
 
 ```mermaid
-flowchart LR
-    IDE([🧠 IntelliJ IDE]):::src -->|active keymap| R[resolve_keymap.py]:::stage
-    R -->|"source/*.resolved.xml"| G["generate.py + overrides.jsonc"]:::stage
-    G -->|"keybindings.generated.json"| I[install.py]:::stage
-    I -->|write + backup| OUT([💻 VS Code · Cursor · Windsurf · …]):::dst
+flowchart TD
+    IDE([🧠 IntelliJ IDE · active keymap]):::src
+    R[resolve_keymap.py]:::stage
+    G["generate.py + overrides.jsonc"]:::stage
+    I[install.py]:::stage
+    OUT([💻 VS Code family]):::dst
+
+    IDE -->|export| R
+    R -->|"source/*.resolved.xml"| G
+    G -->|"keybindings.generated.json"| I
+    I -->|write + backup| OUT
 
     classDef src fill:#6b57d2,color:#fff,stroke:#4b3aa8
     classDef dst fill:#0ea5e9,color:#fff,stroke:#0369a1
