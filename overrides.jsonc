@@ -49,8 +49,6 @@
     "Unsplit": "workbench.action.joinTwoGroups",
     "NextWindow": "workbench.action.nextEditor",
     "PreviousWindow": "workbench.action.previousEditor",
-    "ExpandAll": "editor.unfoldAll",
-    "CollapseAll": "editor.foldAll",
     "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer"
   },
 
@@ -67,7 +65,22 @@
     "Diff.ShowDiff",
 
     // Ctrl+Y is Redo here (see `entries` below), not PhpStorm's "Delete Line".
-    "EditorDeleteLine"
+    "EditorDeleteLine",
+
+    // Legacy aliases of CollapseAllRegions / ExpandAllRegions. PhpStorm also
+    // binds these to Ctrl+- / Ctrl+= (same key as CollapseRegion / ExpandRegion),
+    // so mapping them collided folding "all" onto the "region" key. The
+    // *AllRegions actions already cover Ctrl+Shift+- / Ctrl+Shift+=.
+    "CollapseAll",
+    "ExpandAll",
+
+    // Both sit on F7 in PhpStorm (Step Into while debugging, Next Difference in a
+    // diff). Re-added in `entries` below, `when`-split so both keep working.
+    "StepInto",
+    "NextDiff",
+
+    // Diff-viewer-only; collides with Switcher (Recent Files) on Ctrl+Shift+Tab.
+    "Diff.FocusOppositePane"
   ],
 
   "entries": [
@@ -131,6 +144,11 @@
     { "key": "ctrl+alt+s",   "command": "-workbench.action.openSettings" },
     { "key": "f2",           "command": "editor.action.marker.next", "when": "editorFocus" },
     { "key": "shift+f2",     "command": "editor.action.marker.prev", "when": "editorFocus" },
+
+    // F7 is Step Into (debugging) and Next Difference (diff viewer) in PhpStorm.
+    // StepInto / NextDiff are dropped above; re-assert both, split by context.
+    { "key": "f7",           "command": "workbench.action.debug.stepInto",           "when": "inDebugMode" },
+    { "key": "f7",           "command": "workbench.action.compareEditor.nextChange", "when": "!inDebugMode && !terminalFocus" },
 
     // ---- Terminal: keep control chars in the shell; add only the safe verbs ---
     { "key": "ctrl+shift+c", "command": "workbench.action.terminal.copySelection", "when": "terminalFocus && terminalHasBeenCreated && terminalTextSelected" },

@@ -117,6 +117,32 @@ def _when_disjoint(a: str, b: str) -> bool:
             or any(t.startswith("!") and t[1:] in ta for t in tb))
 
 
+def resolve_conflicts_by_keymap_order(generated: list[dict]):
+    """Two generated bindings on the same key with overlapping `when`: the one
+    from the *earlier keymap action* wins - the PhpStorm keymap's own order is
+    authoritative - and the later one is dropped.
+
+    `generated` entries must carry `_src` (the source-action index). Returns
+    (kept, dropped) with dropped a list of (key, winner_cmd, loser_cmd).
+    """
+    kept: list[dict] = []
+    dropped: list[tuple[str, str, str]] = []
+    taken: dict[str, list[tuple[str, str]]] = {}   # key -> [(when, command)]
+    for e in sorted(generated, key=lambda x: x["_src"]):
+        cmd, key, when = e["command"], e["key"], e.get("when", "")
+        if cmd.startswith("-"):
+            kept.append(e)
+            continue
+        clash = next((c for w, c in taken.get(key, [])
+                      if c != cmd and not _when_disjoint(w, when)), None)
+        if clash is not None:
+            dropped.append((key, clash, cmd))
+            continue
+        taken.setdefault(key, []).append((when, cmd))
+        kept.append(e)
+    return kept, dropped
+
+
 def find_key_conflicts(generated: list[dict], base_entries: list[dict]):
     """Keys bound to two or more *different* positive commands in the final file.
 
@@ -359,7 +385,7 @@ def main(argv: list[str] | None = None) -> int:
     rep_badkey: list[str] = []
     rep_mouse: list[str] = []
 
-    for aid, keystrokes, mouse in source:
+    for src_idx, (aid, keystrokes, mouse) in enumerate(source):
         for m in mouse:
             rep_mouse.append(f"{aid}  <-  mouse: {m}")
 
@@ -387,7 +413,7 @@ def main(argv: list[str] | None = None) -> int:
                 if pair in emitted_pairs:
                     continue
                 emitted_pairs.add(pair)
-                entry = {"key": vkey, "command": command}
+                entry = {"key": vkey, "command": command, "_src": src_idx}
                 # Keys the shell / integrated terminal needs for itself (readline
                 # control chars, word motion, X11 clipboard) get a guard so the
                 # editor binding never swallows them in the terminal.
@@ -396,6 +422,9 @@ def main(argv: list[str] | None = None) -> int:
                 generated.append(entry)
                 rep_mapped.append(f"{command}  <-  {vkey}  ({aid})")
 
+    generated, order_resolved = resolve_conflicts_by_keymap_order(generated)
+    for e in generated:
+        e.pop("_src", None)
     generated.sort(key=lambda e: (e["command"], e["key"]))
 
     hard_conflicts, soft_conflicts = find_key_conflicts(generated, base_entries)
@@ -441,6 +470,12 @@ def main(argv: list[str] | None = None) -> int:
                 lines.append(f"    {cmd}  [{when or 'always'}]  ({origin})")
         return f"## {title}  ({len(rows)})\n\n```\n" + "\n".join(lines) + "\n```\n"
 
+    def order_block(title, rows):
+        if not rows:
+            return f"## {title}  (0)\n\n_none_\n"
+        lines = sorted(f"{key}   keep {win}   drop {lose}" for key, win, lose in rows)
+        return f"## {title}  ({len(rows)})\n\n```\n" + "\n".join(lines) + "\n```\n"
+
     OUT_REPORT.write_text(
         "# PhpStorm -> VS Code keymap port report\n\n"
         f"- source file: `{src_rel}`\n"
@@ -448,7 +483,9 @@ def main(argv: list[str] | None = None) -> int:
         f"- generated entries: **{len(generated)}**\n"
         f"- curated base entries (overrides.jsonc): **{len(base_entries)}**\n"
         f"- total in keybindings.generated.json: **{len(generated) + len(base_entries)}**\n\n"
-        + conflict_block("Key conflicts - no curated winner (resolve in overrides.jsonc)", hard_conflicts)
+        + order_block("Key conflicts - resolved by keymap order (earlier action wins)", order_resolved)
+        + "\n"
+        + conflict_block("Key conflicts - no winner picked (resolve in overrides.jsonc)", hard_conflicts)
         + "\n"
         + conflict_block("Key conflicts - overrides.jsonc picks the winner", soft_conflicts)
         + "\n"
@@ -468,7 +505,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"report -> {OUT_REPORT.name}  "
           f"(unmapped={len(set(rep_unmapped))}, covered={len(set(rep_covered))}, "
           f"badkey={len(set(rep_badkey))}, mouse={len(set(rep_mouse))}, "
-          f"conflicts={len(hard_conflicts)}+{len(soft_conflicts)})")
+          f"conflicts: order-resolved={len(order_resolved)}, "
+          f"unresolved={len(hard_conflicts)}, overridden={len(soft_conflicts)})")
+
+    for key, win, lose in order_resolved:
+        print(f"  keymap order: {key} -> kept {win}, dropped {lose}")
 
     if hard_conflicts:
         print(f"WARNING: {len(hard_conflicts)} key(s) bound to 2+ commands with no "
