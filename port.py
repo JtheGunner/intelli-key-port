@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 One command for the whole flow:  resolve the active JetBrains keymap  ->
-generate keybindings.generated.json + report.md  ->  install into every
-VS Code-family editor found.
+generate keybindings.generated.json + report.md  ->  install into the
+VS Code-family editors you pick (interactive checkbox prompt when more
+than one is found; --only / --dry-run / no tty skip it).
 
     ./port.py                        # all three steps
     ./port.py --product WebStorm     # (resolve) a different JetBrains IDE

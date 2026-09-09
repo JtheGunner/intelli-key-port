@@ -50,6 +50,8 @@ report.md                     what mapped / was already covered / has no VS Code
         ▼
 install.py   →  <user-data>/<editor>/User/keybindings.json      (timestamped backup first)
                 Code · Code - Insiders · VSCodium · Cursor · Windsurf · Antigravity · Antigravity IDE
+                more than one found + interactive?  →  arrow-key checkbox prompt to pick which
+                (skipped by --only / --dry-run / no tty → all detected editors)
 ```
 
 `generate.py` prefers `source/*.resolved.xml`; with none it falls back to any
@@ -160,6 +162,7 @@ re-run `./port.py` (or `./port.py --skip-resolve` to skip the IDE read).
 | `port.py` | one-shot driver (resolve → generate → install) |
 | `resolve_keymap.py`, `generate.py`, `install.py` | the three stages, each runnable alone |
 | `kkato.py` | locates the k--kato extension's resources (installed, else `vendor/kkato/`) |
+| `prompt_select.py` | stdlib arrow-key checkbox prompt used by `install.py` to pick target editors |
 | `sync_vendor.py` | refreshes `vendor/kkato/` from the installed extension (`./port.py --sync-vendor`) |
 | `overrides.jsonc` | curated layer (edit this) |
 | `vendor/kkato/` | pinned k--kato resources + `VERSION` — offline fallback for the three mapping tables |
@@ -195,6 +198,12 @@ All options are flat; `port.py` routes each to the right stage:
 ./port.py --skip-resolve               # reuse the existing source/*.resolved.xml
 ./port.py --sync-vendor                # refresh vendor/kkato/ from the installed extension, then exit
 ```
+
+When the install step finds more than one editor and is run from a terminal, it
+first prints how many it found and shows a colour-coded arrow-key checkbox list
+(`up`/`down`, `space` toggle, `a` all, `enter` confirm, `esc` cancel) — every
+editor pre-checked. Pass `--only` to name targets up front, or `--dry-run`; a
+non-interactive run (pipe / CI) writes to all detected editors as before.
 
 A step that fails stops the chain. Each stage also runs on its own, same options:
 
