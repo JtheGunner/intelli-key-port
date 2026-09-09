@@ -62,7 +62,7 @@ def candidate_user_dirs(folder: str, flatpak_id: str | None, snap_name: str | No
     return out
 
 
-def main() -> int:
+def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file", default=str(ROOT / "keybindings.generated.json"),
@@ -70,7 +70,11 @@ def main() -> int:
     ap.add_argument("--only", action="append", metavar="NAME",
                     help="restrict to this editor config-folder name (repeatable)")
     ap.add_argument("--dry-run", action="store_true")
-    args = ap.parse_args()
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_arg_parser().parse_args(argv)
 
     src = Path(args.file)
     if not src.is_file():

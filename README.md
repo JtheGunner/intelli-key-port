@@ -7,8 +7,10 @@ the IDE's own keymap files rather than a third-party export. Works on
 **macOS, Windows and Linux**.
 
 Nothing here is specific to one machine or user: every path is derived at
-runtime from the OS + the IDE's `product-info.json`. The only per-user file,
-`source/*.resolved.xml`, is generated and git-ignored.
+runtime from the OS + the IDE's `product-info.json`. The per-user build
+outputs (`source/*.resolved.xml`, `keybindings.generated.json`, `report.md`)
+are git-ignored; only the code, `overrides.jsonc` and pinned `vendor/` files
+are tracked.
 
 ## Why the naive routes failed
 
@@ -23,11 +25,13 @@ key code `ctrl #10000a7`, `0xA7` = section sign) into `ctrl UNKNOWN`.
 
 ## How this works instead
 
+`port.py` runs the three stages in order. Each stage is also a standalone script.
+
 ```
 resolve_keymap.py
-   • finds the IDE install via product-info.json          (macOS .app / Win / Linux / Toolbox)
-   • finds the matching config dir via dataDirectoryName
-   • reads options/[mac/]keymap.xml → <active_keymap>      (--keymap overrides)
+   • finds the IDE install via product-info.json          (macOS .app / Win / Linux / Toolbox / Flatpak)
+   • matches the config dir via dataDirectoryName
+   • reads options/[mac/]keymap.xml → <active_keymap>     (--keymap overrides)
    • walks the parent chain  $default → … → <active>
    • folds in plugin-registered defaults (Git etc.) from  plugins/**/*.jar  META-INF/*.xml
         ▼
@@ -36,15 +40,15 @@ source/<name>.resolved.xml     flat, fully-inherited keymap (per-user, git-ignor
 generate.py  ──uses──►  vendor/ActionIdCommandMapping.json   (IntelliJ action → VS Code command)
                         vendor/KeystrokeKeyMapping.json       (AWT key token → VS Code key)
                         vendor/default-Windows-VSCode.json    ("already shipped by extension")
-        │
+        │  • decodes #100XXXX extended keys · !terminalFocus-guards bare ctrl+<letter>
         ├─ overrides.jsonc   curated layer: terminal-signal guards, `-cmd` removals,
-        │                    stale/missing action→command fixes, drop-list
+        │                    stale/missing action→command fixes, drop-list  (appended LAST → wins)
         ▼
-keybindings.generated.json    generated block  +  overrides.jsonc "entries" (appended LAST → win)
+keybindings.generated.json    generated block  +  overrides.jsonc "entries"
 report.md                     what mapped / was already covered / has no VS Code command / mouse
         ▼
-install.py   →  <user-data>/{Code, Code - Insiders, VSCodium, Cursor, Windsurf,
-                              Antigravity, Antigravity IDE}/User/keybindings.json
+install.py   →  <user-data>/<editor>/User/keybindings.json      (timestamped backup first)
+                Code · Code - Insiders · VSCodium · Cursor · Windsurf · Antigravity · Antigravity IDE
 ```
 
 `generate.py` prefers `source/*.resolved.xml`; with none it falls back to any
@@ -64,10 +68,19 @@ in `generate.py`.
 
 ### The extension stays installed
 
-`k--kato.intellij-idea-keybindings` is the base layer in every target editor
-(install it there). It covers the IntelliJ actions with **no** entry in its
-command table (tool windows, refactorings, most navigation) — see `report.md`
-→ *"No VS Code command mapping"*.
+`k--kato.intellij-idea-keybindings` is the base layer in every target editor:
+
+```sh
+code   --install-extension k--kato.intellij-idea-keybindings      # VS Code
+cursor --install-extension k--kato.intellij-idea-keybindings      # Cursor
+# Antigravity: its bundled CLI, e.g.
+"/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide" \
+    --install-extension k--kato.intellij-idea-keybindings
+```
+
+It covers the IntelliJ actions with **no** entry in its command table (tool
+windows, refactorings, most navigation) — see `report.md` → *"No VS Code
+command mapping"*.
 
 Caveat: on macOS the extension binds those residual actions to **Cmd**, not
 Ctrl. Everything this port maps is re-bound to **Ctrl** (PC muscle memory,
@@ -77,40 +90,39 @@ extension keybindings. To pull more actions onto Ctrl, add them to
 
 ## Usage
 
-macOS / Linux:
+One command does everything — resolve the active keymap, generate, install:
 
 ```sh
-./build.sh                 # resolve active keymap + generate
-python3 install.py         # back up + deploy to every VS Code-family editor found
+./port.py                    # macOS / Linux   (or: python3 port.py)
+python port.py               # Windows
 ```
 
-Windows (PowerShell):
-
-```powershell
-.\build.ps1
-python install.py
-```
-
-Any OS, no wrapper:
+All options are flat; `port.py` routes each to the right stage:
 
 ```sh
-python3 resolve_keymap.py && python3 generate.py && python3 install.py
+./port.py --product IntelliJIdea       # → resolve   PhpStorm (default), WebStorm, DataGrip, PyCharm, GoLand, …
+./port.py --keymap "macOS"             # → resolve   a specific keymap (user or built-in; display names aliased)
+./port.py --app "/path/to/IDE"         # → resolve   explicit install (.app bundle, Program Files dir, Toolbox dir)
+./port.py --config-dir "/path/to/<Product><version>"
+./port.py --only Code --only Cursor    # → install   restrict to these editors (repeatable)
+./port.py --dry-run                    # → install   preview only (resolve + generate still run)
+./port.py --file other.json            # → install   a different keybindings file
+./port.py --skip-install               # stop after generate
+./port.py --skip-resolve               # reuse the existing source/*.resolved.xml
 ```
 
-`build.*` / `resolve_keymap.py` options:
+A step that fails stops the chain. Each stage also runs on its own, same options:
 
 ```sh
---product IntelliJIdea            # PhpStorm (default), WebStorm, DataGrip, PyCharm, GoLand, …
---keymap "macOS"                  # a specific keymap (user or built-in; display names aliased)
---app  "/path/to/IDE"             # explicit install (.app bundle, Program Files dir, Toolbox dir)
---config-dir "/path/to/<Product><version>"
+python3 resolve_keymap.py [--product … --keymap … --app … --config-dir …]
+python3 generate.py
+python3 install.py        [--only NAME … --dry-run --file PATH]
 ```
-
-`install.py` options: `--dry-run`, `--only Code` (repeatable), `--file X.json`.
 
 No JetBrains IDE on this machine? Drop a raw *Settings → Keymap → gear →
-Export Keymap* `.xml` into `source/` (any name) and run `python3 generate.py`
-directly — this fallback is pure Python and needs no IDE detection at all.
+Export Keymap* `.xml` into `source/` (any name) and run
+`./port.py --skip-resolve` (or `python3 generate.py && python3 install.py`) —
+this fallback is pure Python and needs no IDE detection.
 
 ### Platform support
 

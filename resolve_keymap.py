@@ -437,7 +437,7 @@ def write_resolved(name: str, chain: list[str], merged: dict[str, dict]):
     return out, kept
 
 
-def main() -> int:
+def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -446,7 +446,11 @@ def main() -> int:
     ap.add_argument("--keymap", help="keymap name to resolve (default: the IDE's active keymap)")
     ap.add_argument("--config-dir", help="explicit <Product><version> config dir")
     ap.add_argument("--app", help="explicit IDE install dir / .app bundle")
-    args = ap.parse_args()
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_arg_parser().parse_args(argv)
 
     lib_dir, plugins_dir, data_dir_name = resolve_install(args.product, args.app)
     config_dir = resolve_config_dir(args.product, args.config_dir, data_dir_name)
