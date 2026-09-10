@@ -27,7 +27,7 @@ Antigravity.
 
 It does the whole trip from A to Z:
 
-|    | Step        |                                                                                                                                         |
+|    | Step        | Description                                                                                                                             |
 |:--:|-------------|-----------------------------------------------------------------------------------------------------------------------------------------|
 | 📤 | **Export**  | reads the keymap that is *currently active* in your IntelliJ IDE, straight from the IDE's own config files — no third-party export step |
 | 🔀 | **Convert** | rewrites it as a VS Code `keybindings.json`, mapping IntelliJ action ids → VS Code commands and AWT keystrokes → VS Code keys           |
@@ -40,14 +40,14 @@ identical everywhere.
 
 ### ✨ At a glance
 
-|                       |                                                                                    |
-|-----------------------|------------------------------------------------------------------------------------|
-| 📥 **Input**          | the active keymap of any JetBrains IDE (or a hand-exported `.xml`)                 |
-| 📤 **Output**         | a ready-to-use `keybindings.json` for every installed VS Code-family editor        |
-| 🧰 **Dependencies**   | none — Python 3 standard library only                                              |
-| 💾 **Safe**           | each target's `keybindings.json` is backed up as `…bak-<timestamp>` before writing |
-| 🔁 **Repeatable**     | idempotent; discovery happens at runtime, so it survives IDE updates               |
-| 🖥️ **Cross-platform** | macOS, Windows, Linux (incl. JetBrains Toolbox, Snap, Flatpak)                     |
+|                                  |                                                                                    |
+|----------------------------------|------------------------------------------------------------------------------------|
+| 📥&nbsp;&nbsp;**Input**          | the active keymap of any JetBrains IDE (or a hand-exported `.xml`)                 |
+| 📤&nbsp;&nbsp;**Output**         | a ready-to-use `keybindings.json` for every installed VS Code-family editor        |
+| 🧰&nbsp;&nbsp;**Dependencies**   | none — Python 3 standard library only                                              |
+| 💾&nbsp;&nbsp;**Safe**           | each target's `keybindings.json` is backed up as `…bak-<timestamp>` before writing |
+| 🔁&nbsp;&nbsp;**Repeatable**     | idempotent; discovery happens at runtime, so it survives IDE updates               |
+| 🖥️&nbsp;&nbsp;**Cross-platform** | macOS, Windows, Linux (incl. JetBrains Toolbox, Snap, Flatpak)                     |
 
 ---
 
@@ -83,11 +83,11 @@ python port.py
 ```
 
 > [!TIP]
-> **No JetBrains IDE on this machine?** – Then you've two options 
+> **No JetBrains IDE on this machine?** – Then you've two options
 >> 1. Export the keymap by hand (*Settings → Keymap → gear ⚙️ → Export Keymap*), drop the `.xml` into source/`
-> 
+>
 >> 2. use my `source/default.xml` (which is already at the right place)
-> 
+>
 > run `./port.py --skip-resolve`. That path is pure Python and needs no IDE detection.
 
 ---
@@ -95,37 +95,40 @@ python port.py
 ## 🧩 How it fits together
 
 IntelliKeyPort is a small set of plain-Python scripts plus **one**
-hand-maintained data file. `port.py` runs them as a three-stage pipeline —
-the **step** and its **description** are coloured differently below:
+hand-maintained data file. `port.py` runs a three-stage pipeline — read it
+top to bottom:
 
 ```yaml
-# in ── your active IntelliJ keymap
-resolve_keymap.py:              read the IDE's keymap, fully resolved
-generate.py + overrides.jsonc:  translate it to VS Code commands + keys
-install.py:                     back up, then write it into each editor
-# out ── the same shortcuts, now across the VS Code family
+   "IntelliJ IDE · your active keymap"
+        │
+        ▼   resolve_keymap.py:   find the IDE, flatten the parent chain
+   "source/<name>.resolved.xml"
+        │
+        ▼   generate.py:         actions → commands, keys → keys
+   "keybindings.generated.json + report.md"
+        │
+        ▼   install.py:          timestamped backup, then write
+   "VS Code · Cursor · Windsurf · Antigravity · …"
 ```
 
-Between the stages the data flows `source/<name>.resolved.xml` →
-`keybindings.generated.json` (plus a readable `report.md`) → a fresh
-`keybindings.json` in every editor you pick. Each stage is also a standalone
-script; `port.py` runs the three in order and stops at the first failure.
+Each stage is also a standalone script; `port.py` just runs the three in order
+and stops at the first failure.
 
 ### 📂 The files
 
-| File                        | Role                                                                                                                                                                                                                                                                                                                                     |
-|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🎬&nbsp;`port.py`           | One-shot driver: `resolve → generate → install`. A failing stage stops the chain.                                                                                                                                                                                                                                                        |
-| 🔍&nbsp;`resolve_keymap.py` | **Stage 1.** Locates the JetBrains IDE (`/Applications`, Program Files, `/opt`, JetBrains Toolbox, Snap, Flatpak), finds its config directory, reads `keymap.xml` for the active keymap, walks the parent chain (`$default → … → your keymap`), and folds in plugin-registered defaults (Git, etc.). → one flat `source/*.resolved.xml`. |
-| 🏗️&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + `overrides.jsonc`, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                      |
-| 📦&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors, backs up each one's `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. Interactive checkbox picker when several editors are found.                                                                                                                         |
-| 🎛️&nbsp;`overrides.jsonc`   | **The one file you edit by hand.** Curated tweaks that steer stages 2 and 3 — see below.                                                                                                                                                                                                                                                 |
-| 🧷&nbsp;`kkato.py`          | Locates the `k--kato` extension's resources (newest installed copy, else `vendor/kkato/`).                                                                                                                                                                                                                                               |
-| ☑️&nbsp;`prompt_select.py`  | Stdlib arrow-key checkbox prompt used by `install.py`.                                                                                                                                                                                                                                                                                   |
-| 🔄&nbsp;`sync_vendor.py`    | Refreshes `vendor/kkato/` from the installed extension.                                                                                                                                                                                                                                                                                  |
-| 🗃️&nbsp;`vendor/kkato/`     | Pinned copy of the `k--kato` mapping tables + a `VERSION` file — offline fallback for a fresh checkout / CI.                                                                                                                                                                                                                             |
-| 📁&nbsp;`source/`           | Where the resolved keymap (or a hand-exported one) lives.                                                                                                                                                                                                                                                                                |
-| 🧪&nbsp;`tests/`            | Unit tests for install-layout discovery, the editor picker, and conflict resolution.                                                                                                                                                                                                                                                     |
+| File                              | Role                                                                                                                                                                                                                                                                                                                                     |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🎬&nbsp;&nbsp;`port.py`           | One-shot driver: `resolve → generate → install`. A failing stage stops the chain.                                                                                                                                                                                                                                                        |
+| 🔍&nbsp;&nbsp;`resolve_keymap.py` | **Stage 1.** Locates the JetBrains IDE (`/Applications`, Program Files, `/opt`, JetBrains Toolbox, Snap, Flatpak), finds its config directory, reads `keymap.xml` for the active keymap, walks the parent chain (`$default → … → your keymap`), and folds in plugin-registered defaults (Git, etc.). → one flat `source/*.resolved.xml`. |
+| 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + `overrides.jsonc`, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                      |
+| 📦&nbsp;&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors, backs up each one's `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. Interactive checkbox picker when several editors are found.                                                                                                                         |
+| 🎛️&nbsp;&nbsp;`overrides.jsonc`   | **The one file you edit by hand.** Curated tweaks that steer stages 2 and 3 — see below.                                                                                                                                                                                                                                                 |
+| 🧷&nbsp;&nbsp;`kkato.py`          | Locates the `k--kato` extension's resources (newest installed copy, else `vendor/kkato/`).                                                                                                                                                                                                                                               |
+| ☑️&nbsp;&nbsp;`prompt_select.py`  | Stdlib arrow-key checkbox prompt used by `install.py`.                                                                                                                                                                                                                                                                                   |
+| 🔄&nbsp;&nbsp;`sync_vendor.py`    | Refreshes `vendor/kkato/` from the installed extension.                                                                                                                                                                                                                                                                                  |
+| 🗃️&nbsp;&nbsp;`vendor/kkato/`     | Pinned copy of the `k--kato` mapping tables + a `VERSION` file — offline fallback for a fresh checkout / CI.                                                                                                                                                                                                                             |
+| 📁&nbsp;&nbsp;`source/`           | Where the resolved keymap (or a hand-exported one) lives.                                                                                                                                                                                                                                                                                |
+| 🧪&nbsp;&nbsp;`tests/`            | Unit tests for install-layout discovery, the editor picker, and conflict resolution.                                                                                                                                                                                                                                                     |
 
 > [!NOTE]
 > Everything tracked in git is machine-independent. The per-user build outputs
@@ -141,15 +144,15 @@ script; `port.py` runs the three in order and stops at the first failure.
 handful of decisions a machine cannot make for you. It is *not* a catalogue of
 available shortcuts; it is three lists:
 
-| Key                               | What it does                                                                                                                                                                                   | Typical use                                                                                                                                                                                                                                                                                                                                        |
-|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🥇&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards (`ctrl+c` only when the terminal is *not* focused, so the shell keeps <kbd>Ctrl</kbd> + <kbd>C</kbd>); `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire; deliberate choices like <kbd>Ctrl</kbd> + <kbd>Y</kbd> = redo, zoom on the numpad, <kbd>Shift</kbd> + <kbd>Enter</kbd> = terminal newline. Keep it small. |
-| ➕&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                                                                                                                                                                                                                                                 |
-| 🚫&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates (e.g. a second action that also wants <kbd>Ctrl</kbd> + <kbd>D</kbd>).                                                                                                                                                                                                                                                  |
+| Key                                     | What it does                                                                                                                                                                                   | Typical use                                                                                                                                                                                                                                                                                   |
+|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🥇&nbsp;&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards (`Ctrl + C` only when the terminal is *not* focused, so the shell keeps `Ctrl + C`) `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire; deliberate choices like `Ctrl + Y` = redo, zoom on the numpad, `Shift + Enter` = terminal newline. Keep it small. |
+| ➕&nbsp;&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                                                                                                                                                                                            |
+| 🚫&nbsp;&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates (e.g. a second action that also wants `Ctrl + D`).                                                                                                                                                                                                               |
 
 **Why it exists:** some shortcuts are genuinely ambiguous once they leave the
-IDE. The integrated terminal needs <kbd>Ctrl</kbd> + <kbd>C</kbd> /
-<kbd>Ctrl</kbd> + <kbd>D</kbd> / <kbd>Ctrl</kbd> + <kbd>R</kbd>; macOS binds some
+IDE. The integrated terminal needs `Ctrl + C` /
+`Ctrl + D` / `Ctrl + R`; macOS binds some
 combos at the OS level; a few IntelliJ actions have two ids on the same key.
 `overrides.jsonc` records those decisions once, in one readable file, so every
 regeneration keeps them. After editing it, re-run `./port.py` (or
@@ -166,6 +169,20 @@ regeneration keeps them. After editing it, re-run `./port.py` (or
 
 Everything runs through **`port.py`**. Its flags are flat; it routes each one to
 the stage that needs it.
+
+| Command | What it does |
+| :--- | :--- |
+| ```./port.py``` | **The default.** Resolve the *active* keymap of the default JetBrains product (PhpStorm), regenerate, then install with the interactive picker. |
+| `./port.py --product IntelliJIdea` | Resolve a different JetBrains IDE. Known values: `PhpStorm`, `IntelliJIdea`, `WebStorm`, `PyCharm`, `DataGrip`, `GoLand`, `RubyMine`, `CLion`, `Rider`, `RustRover`. |
+| `./port.py --keymap "macOS"` | Resolve a *specific* keymap instead of the IDE's active one — a built-in (`Default`, `macOS`, `Visual Studio`, …) or one of your own. Display names are aliased to their internal names. |
+| `./port.py --app "/Applications/WebStorm.app"` | Point at an explicit install when auto-discovery picks the wrong one or finds nothing. Accepts a macOS `.app` bundle, a Windows program directory, or a JetBrains Toolbox folder. |
+| `./port.py --config-dir "/path/to/WebStorm2025.2"` | Point at an explicit IDE **config** directory (the one holding `options/keymap.xml`), skipping install-based discovery entirely. |
+| `./port.py --only Code --only Cursor` | Install into just these editors (repeatable). Names are the config-folder names: `Code`, `Code - Insiders`, `VSCodium`, `Cursor`, `Windsurf`, `Antigravity`, `Antigravity IDE`. Also skips the picker. |
+| `./port.py --dry-run` | Resolve and generate as usual, but only **print** what the install step would write — no files touched. |
+| `./port.py --file other.json` | Install a different keybindings file instead of the freshly generated one. |
+| `./port.py --skip-resolve` | Reuse the existing `source/*.resolved.xml` (or a hand-exported `source/*.xml`) — no JetBrains IDE needed. Use on an IDE-less machine, or after editing `overrides.jsonc`. |
+| `./port.py --skip-install` | Stop after `generate.py`. You get `keybindings.generated.json` + `report.md`, nothing is deployed. |
+| `./port.py --sync-vendor` | Refresh `vendor/kkato/` from the newest installed `k--kato` extension, then exit. Run after the extension updates so the offline fallback stays current. |
 
 <table>
 <tr><th>Command</th><th>What it does</th></tr>
@@ -317,43 +334,43 @@ python3 install.py        [--only NAME … --dry-run --file PATH]
 python3 sync_vendor.py
 ```
 
+> [!NOTE]
+> By default the tool is looking for IDEs and config-dirs by itself.<br>
+> If you're using `--app` / `--config-dir` that will override discovery entirely.
+
 ---
 
 ## 🔬 How the translation works
 
 `generate.py` builds a **delta** file. VS Code already ships hundreds of default
-bindings and the `k--kato.intellij-idea-keybindings` extension adds ~220 more;
-`keybindings.generated.json` only **adds, removes or overrides** on top of
-those. It has two blocks, marked by `// ----` comments:
+bindings and the `k--kato.intellij-idea-keybindings` extension adds a few
+hundred more; `keybindings.generated.json` only **adds, removes or overrides**
+on top of those. It has two blocks, marked by `// ----` comments:
 
-| Block                                        | Roughly | Each line                                                                                                                                                                                          |
-|----------------------------------------------|--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🏗️&nbsp;**generated**                        |    ~135 | One entry per keymap action that has a VS Code command **and** sits on a different key than the VS Code / `k--kato` default for this OS. Keys the shell needs also get `"when": "!terminalFocus"`. |
-| 🎛️&nbsp;**`overrides.jsonc`&nbsp;`entries`** |     ~55 | The curated hand-layer, appended **last** so it wins.                                                                                                                                              |
+| Block                                              | Each line                                                                                                                                                                                          |
+|----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🏗️&nbsp;&nbsp;**generated**                        | One entry per keymap action that has a VS Code command **and** sits on a different key than the VS Code / `k--kato` default for this OS. Keys the shell needs also get `"when": "!terminalFocus"`. |
+| 🎛️&nbsp;&nbsp;**`overrides.jsonc`&nbsp;`entries`** | The curated hand-layer, appended **last** so it wins.                                                                                                                                              |
+
+Every run writes a `report.md` that accounts for **all** of it. The figures
+below are from the bundled sample keymap — the full output is committed as the
+**[example report](docs/example-report.md)** (`source/default.xml`, 483 actions):
+
+| `report.md` section | Sample | Meaning |
+|---|--:|---|
+| generated → emitted | **117** | actions that became a `keybindings.json` entry |
+| curated base (`overrides.jsonc`) | **74** | hand-layer entries appended last |
+| already covered by base / extension | **51** | same key + command already shipped — skipped |
+| no VS Code command mapping | **327** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
+| mouse shortcuts | **16** | `keybindings.json` cannot express mouse bindings |
+| key could not be translated | **0** | an AWT keystroke with no VS Code token |
+
+`report.md` also lists key collisions: resolved by keymap order (earlier action
+wins), left unresolved (fix in `overrides.jsonc`), or overridden on purpose.
 
 > [!NOTE]
 > A shortcut that is **not** in the file is not *"missing"* — it just has no
 > custom binding, so the VS Code (or extension) default still applies.
-
-
-What is genuinely **not reproduced** is listed in `report.md`:
-
-* <span style="display: inline-flex; align-items: flex-start; gap: 6px; margin-bottom: 5px;">
-    <span>🔸</span>
-    <span><b>~340</b> keymap actions with no VS Code command (tool windows, most refactorings, most navigation). The <code>k--kato</code> extension already binds many of these — on macOS to <kbd>Cmd</kbd>, not <kbd>Ctrl</kbd>. To   pull one onto <kbd>Ctrl</kbd>, add it to <code>manualActionCommand</code> and regenerate.
-    </span>
-  </span>
-* <span style="display: inline-flex; align-items: flex-start; gap: 6px; margin-bottom: 5px;">
-    <span>🖱️</span>
-    <span><b>~14</b> mouse shortcuts — <code>keybindings.json</code> cannot express mouse bindings.</span>
-  </span>
-* <span style="display: inline-flex; align-items: flex-start; gap: 6px; margin-bottom: 5px;">
-    <span>🔑</span>
-    <span><b>~14</b> mouse shortcuts — <code>keybindings.json</code> cannot express mouse bindings.</span>
-  </span>
-
-`report.md` also lists key collisions: resolved by keymap order (earlier action
-wins), left unresolved (fix in `overrides.jsonc`), or overridden on purpose.
 
 <br>
 
@@ -362,7 +379,7 @@ wins), left unresolved (fix in `overrides.jsonc`), or overridden on purpose.
 `k--kato.intellij-idea-keybindings` is the base layer in every target editor —
 it covers the many IntelliJ actions that have no entry in its own command
 table. IntelliKeyPort's output loads **after** it and re-binds everything it
-maps to <kbd>Ctrl</kbd> (PC muscle memory, matching the resolved keymap).
+maps to `Ctrl`(PC muscle memory, matching the resolved keymap).
 Install it in each editor:
 
 ```sh
@@ -374,24 +391,29 @@ cursor --install-extension k--kato.intellij-idea-keybindings
 
 ### 🌍 Extended / layout keys
 
-Extended key codes (`#100XXXX`) are decoded to their character and mapped to a
-VS Code **scan-code** token (`§`/`°` → `[Backquote]`, ISO `<`/`>` →
-`[IntlBackslash]`, German `ä`/`ö`/`ü` → `[Quote]`/`[Semicolon]`/`[BracketLeft]`,
-…), so the binding follows the *physical* key on any layout. `resolve_keymap.py`
-prints every `#100XXXX` token it meets; add unmapped ones to `EXTENDED_CHAR_KEY`
-in `generate.py`.
+Extended key codes (`#100XXXX`) are decoded to their character and mapped to a VS Code **scan-code** token, ensuring keybindings follow the *physical key* across different keyboard layouts.
+
+| Input Character | Physical Key (Scan Code) | Notes / Region          |
+|:----------------|:-------------------------|:------------------------|
+| `§` / `°`       | `[Backquote]`            | Swiss / German Top-Left |
+| `<` / `>`       | `[IntlBackslash]`        | ISO Extra Key           |
+| `ä`             | `[Quote]`                | German Umlaut           |
+| `ö`             | `[Semicolon]`            | German Umlaut           |
+| `ü`             | `[BracketLeft]`          | German Umlaut           |
+
+> [!NOTE]
+> **Adding Missing Keys**  
+> `resolve_keymap.py` prints every unmapped `#100XXXX` token it encounters. Add new mappings to `EXTENDED_CHAR_KEY` in `generate.py`.
 
 ---
 
 ## 🖥️ Platform support
 
-|                     | 🔍 IDE discovery                                                  | 📁 Editor config dirs                                                                                 |
-|---------------------|-------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| 🍎&nbsp;**macOS**   | `/Applications`, `~/Applications`, Toolbox                        | `~/Library/Application Support/<editor>/User`                                                         |
-| 🪟&nbsp;**Windows** | `Program Files\JetBrains`, `%LOCALAPPDATA%\Programs`, Toolbox     | `%APPDATA%\<editor>\User`                                                                             |
-| 🐧&nbsp;**Linux**   | `/opt`, `/usr/local`, `/snap`, `~/Applications`, Toolbox, Flatpak | `~/.config/<editor>/User`, Flatpak `~/.var/app/<id>/config/…`, Snap `~/snap/<name>/current/.config/…` |
-
-`--app` / `--config-dir` override discovery entirely.
+|                           | 🔍 IDE discovery                                                       | 📁 Editor config dirs                                                                                    |
+|---------------------------|------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| 🍎&nbsp;&nbsp;**macOS**   | `/Applications` · `~/Applications` · Toolbox                           | `~/Library/Application Support/<editor>/User`                                                            |
+| 🪟&nbsp;&nbsp;**Windows** | `Program Files\JetBrains` · `%LOCALAPPDATA%\Programs` · Toolbox        | `%APPDATA%\<editor>\User`                                                                                |
+| 🐧&nbsp;&nbsp;**Linux**   | `/opt` · `/usr/local` · `/snap` · `~/Applications` · Toolbox · Flatpak | `~/.config/<editor>/User` ·  Flatpak `~/.var/app/<id>/config/…` · Snap `~/snap/<name>/current/.config/…` |
 
 ---
 
@@ -399,17 +421,17 @@ in `generate.py`.
 
 *(edit `overrides.jsonc` to change any of these)*
 
-| Key                                                | This port                                         | Note                                                                                                                      |
-|----------------------------------------------------|---------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| <kbd>Ctrl</kbd> + <kbd>numpad</kbd> + <kbd>+</kbd> / <kbd>-</kbd> | zoom in / out                                     | fold-all loses the bare-numpad combo; **fold still works on <kbd>Ctrl</kbd> + <kbd>=</kbd> / <kbd>Ctrl</kbd> + <kbd>-</kbd>** |
-| <kbd>Ctrl</kbd> + <kbd>Y</kbd>                       | redo                                              | matches this keymap (`$Redo`); ```<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>``` also redoes                                  |
-| <kbd>Ctrl</kbd> + <kbd>S</kbd>                       | save current file                                 | the keymap puts *Save All* here; VS Code auto-save covers the rest                                                        |
-| <kbd>Ctrl</kbd> + <kbd>,</kbd>                       | Settings UI                                       | keymap also has <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd>                                                               |
-| <kbd>F7</kbd>                                      | Step Into (debug) / Next Diff                     | both from the keymap; no-op outside their context                                                                         |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>      | terminal: copy selection / editor: copy file path | different `when` contexts                                                                                                 |
-| <kbd>Shift</kbd> + <kbd>Enter</kbd>                  | terminal: send `ESC CR` / editor: new line below  | different `when` contexts                                                                                                 |
-| <kbd>Ctrl</kbd> + <kbd>§</kbd> (`[Backquote]`)       | comment line                                      | decoded from `ctrl #10000a7`; also on <kbd>Ctrl</kbd> + <kbd>/</kbd>                                                        |
-| 🖱️ mouse shortcuts (~14)                           | **not ported**                                    | `keybindings.json` has no mouse bindings — see `report.md`                                                                |
+| Key                         | This port                                         | Note                                                                                  |
+|-----------------------------|---------------------------------------------------|---------------------------------------------------------------------------------------|
+| `Ctrl + numpad +` `+` / `-` | zoom in / out                                     | fold-all loses the bare-numpad combo; **fold still works on `Ctrl + =` / `Ctrl + -`** |
+| `Ctrl + Y`                  | redo                                              | matches this keymap (`$Redo`); `Ctrl + Shift + Z` also redoes                         |
+| `Ctrl + S`                  | save current file                                 | the keymap puts *Save All* here; VS Code auto-save covers the rest                    |
+| `Ctrl + ,`                  | Settings UI                                       | keymap also has `Ctrl + Alt + S`                                                      |
+| `F7`                        | Step Into (debug) / Next Diff                     | both from the keymap; no-op outside their context                                     |
+| `Ctrl + Shift + C`          | terminal: copy selection / editor: copy file path | different `when` contexts                                                             |
+| `Shift + Enter`             | terminal: send `ESC CR` / editor: new line below  | different `when` contexts                                                             |
+| `Ctrl + §` (`[Backquote]`)  | comment line                                      | decoded from `ctrl #10000a7`; also on `Ctrl + /`                                      |
+| 🖱️ mouse shortcuts          | **not ported**                                    | `keybindings.json` has no mouse bindings — see `report.md`                            |
 
 ---
 
@@ -418,16 +440,15 @@ in `generate.py`.
 Reload each editor window, then spot-check with the **editor** focused (not the
 terminal):
 
-| Shortcut                                                                                                                      | Expected                          |
-|-------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| `Ctrl + D` · <kbd>Ctrl</kbd> + <kbd>Y</kbd>                                                                   | duplicate line · redo             |
-| <kbd>Ctrl</kbd> + <kbd>D</kbd> · <kbd>Ctrl</kbd> + <kbd>Y</kbd>                                                                   | duplicate line · redo             |
-| <kbd>Ctrl</kbd> + <kbd>W</kbd> · <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd>                                                  | expand · shrink selection         |
-| <kbd>Ctrl</kbd> + <kbd>B</kbd> · <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>B</kbd>                                                    | go to definition · implementation |
-| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>L</kbd> · <kbd>Ctrl</kbd> + <kbd>/</kbd>                                                    | reformat · comment line           |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd> · <kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd>  | Find Action · Go to Class / File  |
-| <kbd>Alt</kbd> + <kbd>1</kbd> / <kbd>3</kbd> / <kbd>9</kbd>                                                                     | Explorer / Search / SCM           |
-| terminal: <kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>Ctrl</kbd> + <kbd>D</kbd> <kbd>Ctrl</kbd> + <kbd>R</kbd> <kbd>Ctrl</kbd> + <kbd>P</kbd> | still hit the shell               |
+| Shortcut                                                          | Expected                          |
+|-------------------------------------------------------------------|-----------------------------------|
+| `Ctrl + D` · `Ctrl + Y`                                           | duplicate line · redo             |
+| `Ctrl + W` · `Ctrl + Shift + W`                                   | expand · shrink selection         |
+| `Ctrl + B` · `Ctrl + Alt + B`                                     | go to definition · implementation |
+| `Ctrl + Alt + L` · `Ctrl + /`                                     | reformat · comment line           |
+| `Ctrl + Shift + A` · `Ctrl + O` / `Ctrl + Shift + O` · `Ctrl + O` | Find Action · Go to Class / File  |
+| `Alt + ` `1` /  `2` /  `3`                                        | Explorer / Search / SCM           |
+| terminal: `Ctrl + C` `Ctrl + D` `Ctrl + R` `Ctrl + P`             | still hit the shell               |
 
 ---
 
@@ -436,17 +457,16 @@ terminal):
 Contributions are welcome — bug reports, new IDE/editor coverage, better action
 mappings.
 
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🧭</span><span>**Report a mapping gap.** Run `./port.py` and open `report.md`. If an action you use is under *"No VS Code command mapping"* but a VS Code command does exist, add the pair to `manualActionCommand` in `overrides.jsonc` and send a PR.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🧠</span><span>**Add a JetBrains product** → extend the `PRODUCTS` table in `resolve_keymap.py`.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>💻</span><span>**Add an editor** → extend the `EDITORS` table in `install.py`.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🧪</span><span>**Run the tests** before opening a PR:</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧭</span><span>**Report a mapping gap.** Run `./port.py` and open `report.md`. If an action you use is under *"No VS Code command mapping"* but a VS Code command does exist, add the pair to `manualActionCommand` in `overrides.jsonc` and send a PR.</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧠</span><span>**Add a JetBrains product** → extend the `PRODUCTS` table in `resolve_keymap.py`.</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💻</span><span>**Add an editor** → extend the `EDITORS` table in `install.py`.</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧪</span><span>**Run the tests** before opening a PR:</span></span>
   ```sh
   python3 -m unittest discover -s tests -v
   ```
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🇬🇧</span><span>Keep developer-facing text (code, comments, commit messages) in English.
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🇬🇧</span><span>Keep developer-facing text (code, comments, commit messages) in English.
   Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, …).</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🚫</span><span>Don't commit the per-user build outputs — they are git-ignored for a reason.</span></span>
-
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🚫</span><span>Don't commit the per-user build outputs — they are git-ignored for a reason.</span></span>
 
 ---
 
@@ -460,14 +480,14 @@ here: the project is a thin tool, and the mapping data it bundles under
 
 ## 🙏 Credits
 
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>💡</span><span>**Inspired by** [vlad-ogol/intellij-keymap-xml-exporter](https://github.com/vlad-ogol/intellij-keymap-xml-exporter)
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💡</span><span>**Inspired by** [vlad-ogol/intellij-keymap-xml-exporter](https://github.com/vlad-ogol/intellij-keymap-xml-exporter)
   — the idea of turning an IntelliJ keymap into something portable.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 6px;"><span>🗺</span><span>**Mapping data** from [kasecato/vscode-intellij-idea-keybindings](https://github.com/kasecato/vscode-intellij-idea-keybindings)
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🗺</span><span>**Mapping data** from [kasecato/vscode-intellij-idea-keybindings](https://github.com/kasecato/vscode-intellij-idea-keybindings)
   (`k--kato.intellij-idea-keybindings`). Its `ActionIdCommandMapping.json` and
   `KeystrokeKeyMapping.json` do the heavy lifting of matching IntelliJ actions
   and AWT keystrokes to their VS Code equivalents — without them this would have
   been a slog.</span></span>
 
-<div align="center">
+<div style="text-align: center;">
 <sub>Built for people who switch editors more often than they switch keymaps.</sub>
 </div>

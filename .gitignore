@@ -6,3 +6,6 @@ __pycache__/
 /source/*.xml
 /keybindings.generated.json
 /report.md
+
+# ...but ship one sample keymap + its report so the tool can be tried without an IDE
+!/source/default.xml
