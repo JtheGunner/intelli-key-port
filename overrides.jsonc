@@ -174,20 +174,23 @@
     // Ctrl+Left/Right is translated to Alt+Left/Right by Karabiner for all apps (including AGY IDE),
     // allowing native word jump in web/input text boxes.
     // In the Monaco editor, Alt+Left/Right drives cursorWordLeft/Right.
-    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "editorTextFocus && !terminalFocus" },
-    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "editorTextFocus && !terminalFocus" },
-    { "key": "alt+right",       "command": "cursorWordRight",         "when": "editorTextFocus && !terminalFocus" },
-    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "editorTextFocus && !terminalFocus" },
+    // Guard is `!terminalFocus` only (no editorTextFocus): these are pure
+    // cursor/selection moves, and dropping the editor guard lets them fire in
+    // the agent-chat input widget too, not just the code editor.
+    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus" },
+    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus" },
+    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus" },
+    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus" },
 
     // Home / End / Ctrl+Home / Ctrl+End line and document navigation
-    { "key": "home",            "command": "cursorLineStart",         "when": "editorTextFocus && !terminalFocus" },
-    { "key": "shift+home",      "command": "cursorLineStartSelect",   "when": "editorTextFocus && !terminalFocus" },
-    { "key": "end",             "command": "cursorLineEnd",           "when": "editorTextFocus && !terminalFocus" },
-    { "key": "shift+end",       "command": "cursorLineEndSelect",     "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+home",       "command": "cursorTop",               "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+shift+home", "command": "cursorTopSelect",         "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+end",        "command": "cursorBottom",            "when": "editorTextFocus && !terminalFocus" },
-    { "key": "ctrl+shift+end",  "command": "cursorBottomSelect",      "when": "editorTextFocus && !terminalFocus" },
+    { "key": "home",            "command": "cursorLineStart",         "when": "!terminalFocus" },
+    { "key": "shift+home",      "command": "cursorLineStartSelect",   "when": "!terminalFocus" },
+    { "key": "end",             "command": "cursorLineEnd",           "when": "!terminalFocus" },
+    { "key": "shift+end",       "command": "cursorLineEndSelect",     "when": "!terminalFocus" },
+    { "key": "ctrl+home",       "command": "cursorTop",               "when": "!terminalFocus" },
+    { "key": "ctrl+shift+home", "command": "cursorTopSelect",         "when": "!terminalFocus" },
+    { "key": "ctrl+end",        "command": "cursorBottom",            "when": "!terminalFocus" },
+    { "key": "ctrl+shift+end",  "command": "cursorBottomSelect",      "when": "!terminalFocus" },
 
     // ---- Tab Navigation (moved to Ctrl+Cmd+Left/Right to avoid clash with word jump) ---
     { "key": "ctrl+cmd+left",        "command": "workbench.action.previousEditor", "when": "!terminalFocus" },
