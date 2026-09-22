@@ -170,20 +170,6 @@ regeneration keeps them. After editing it, re-run `./port.py` (or
 Everything runs through **`port.py`**. Its flags are flat; it routes each one to
 the stage that needs it.
 
-| Command | What it does |
-| :--- | :--- |
-| ```./port.py``` | **The default.** Resolve the *active* keymap of the default JetBrains product (PhpStorm), regenerate, then install with the interactive picker. |
-| `./port.py --product IntelliJIdea` | Resolve a different JetBrains IDE. Known values: `PhpStorm`, `IntelliJIdea`, `WebStorm`, `PyCharm`, `DataGrip`, `GoLand`, `RubyMine`, `CLion`, `Rider`, `RustRover`. |
-| `./port.py --keymap "macOS"` | Resolve a *specific* keymap instead of the IDE's active one — a built-in (`Default`, `macOS`, `Visual Studio`, …) or one of your own. Display names are aliased to their internal names. |
-| `./port.py --app "/Applications/WebStorm.app"` | Point at an explicit install when auto-discovery picks the wrong one or finds nothing. Accepts a macOS `.app` bundle, a Windows program directory, or a JetBrains Toolbox folder. |
-| `./port.py --config-dir "/path/to/WebStorm2025.2"` | Point at an explicit IDE **config** directory (the one holding `options/keymap.xml`), skipping install-based discovery entirely. |
-| `./port.py --only Code --only Cursor` | Install into just these editors (repeatable). Names are the config-folder names: `Code`, `Code - Insiders`, `VSCodium`, `Cursor`, `Windsurf`, `Antigravity`, `Antigravity IDE`. Also skips the picker. |
-| `./port.py --dry-run` | Resolve and generate as usual, but only **print** what the install step would write — no files touched. |
-| `./port.py --file other.json` | Install a different keybindings file instead of the freshly generated one. |
-| `./port.py --skip-resolve` | Reuse the existing `source/*.resolved.xml` (or a hand-exported `source/*.xml`) — no JetBrains IDE needed. Use on an IDE-less machine, or after editing `overrides.jsonc`. |
-| `./port.py --skip-install` | Stop after `generate.py`. You get `keybindings.generated.json` + `report.md`, nothing is deployed. |
-| `./port.py --sync-vendor` | Refresh `vendor/kkato/` from the newest installed `k--kato` extension, then exit. Run after the extension updates so the offline fallback stays current. |
-
 <table>
 <tr><th>Command</th><th>What it does</th></tr>
 
