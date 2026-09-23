@@ -44,7 +44,8 @@
     "SplitVertically": "workbench.action.splitEditor",
     "SplitHorizontally": "workbench.action.splitEditorDown",
     "Unsplit": "workbench.action.joinTwoGroups",
-    "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer"
+    "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer",
+    "NewElement": "workbench.action.files.newUntitledFile"
   },
 
   "dropActions": [

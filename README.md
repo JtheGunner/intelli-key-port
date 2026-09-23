@@ -373,7 +373,7 @@ below are from the bundled sample keymap — the full output is committed as the
 | generated → emitted | **141** | actions that became a `keybindings.json` entry |
 | curated entries | **4** | entries from the curated layers, appended last |
 | already covered by the layers / extension | **24** | same key + command already shipped — skipped |
-| no VS Code command mapping | **329** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
+| no VS Code command mapping | **328** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
 | mouse shortcuts | **14** | `keybindings.json` cannot express mouse bindings |
 | key could not be translated | **0** | an AWT keystroke with no VS Code token |
 
