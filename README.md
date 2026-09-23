@@ -78,6 +78,9 @@ cd intelli-key-port
 # macOS / Linux
 ./port.py
 
+# Ctrl-based keymap (Windows / XWin style) on a Mac? add the matching layer
+./port.py --layer windows-keymap
+
 #  Windows
 python port.py
 ```
@@ -86,7 +89,7 @@ python port.py
 > **No JetBrains IDE on this machine?** – Then you've two options
 >> 1. Export the keymap by hand (*Settings → Keymap → gear ⚙️ → Export Keymap*), drop the `.xml` into source/`
 >
->> 2. use my `source/default.xml` (which is already at the right place)
+>> 2. use the bundled `source/default.xml` — the stock IntelliJ `$default` keymap
 >
 > run `./port.py --skip-resolve`. That path is pure Python and needs no IDE detection.
 
@@ -120,15 +123,16 @@ and stops at the first failure.
 |-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 🎬&nbsp;&nbsp;`port.py`           | One-shot driver: `resolve → generate → install`. A failing stage stops the chain.                                                                                                                                                                                                                                                        |
 | 🔍&nbsp;&nbsp;`resolve_keymap.py` | **Stage 1.** Locates the JetBrains IDE (`/Applications`, Program Files, `/opt`, JetBrains Toolbox, Snap, Flatpak), finds its config directory, reads `keymap.xml` for the active keymap, walks the parent chain (`$default → … → your keymap`), and folds in plugin-registered defaults (Git, etc.). → one flat `source/*.resolved.xml`. |
-| 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + `overrides.jsonc`, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                      |
+| 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + the curated layers, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                      |
 | 📦&nbsp;&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors, backs up each one's `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. Interactive checkbox picker when several editors are found.                                                                                                                         |
-| 🎛️&nbsp;&nbsp;`overrides.jsonc`   | **The one file you edit by hand.** Curated tweaks that steer stages 2 and 3 — see below.                                                                                                                                                                                                                                                 |
+| 🎛️&nbsp;&nbsp;`overrides.jsonc`   | **Base layer**, always applied: keymap- and machine-neutral fixes that steer stage 2 — see below.                                                                                                                                                                                                                                        |
+| 🧅&nbsp;&nbsp;`layers/`           | **Optional layers**, stacked on the base only with `--layer NAME` — see below.                                                                                                                                                                                                                                                           |
 | 🧷&nbsp;&nbsp;`kkato.py`          | Locates the `k--kato` extension's resources (newest installed copy, else `vendor/kkato/`).                                                                                                                                                                                                                                               |
 | ☑️&nbsp;&nbsp;`prompt_select.py`  | Stdlib arrow-key checkbox prompt used by `install.py`.                                                                                                                                                                                                                                                                                   |
 | 🔄&nbsp;&nbsp;`sync_vendor.py`    | Refreshes `vendor/kkato/` from the installed extension.                                                                                                                                                                                                                                                                                  |
 | 🗃️&nbsp;&nbsp;`vendor/kkato/`     | Pinned copy of the `k--kato` mapping tables + a `VERSION` file — offline fallback for a fresh checkout / CI.                                                                                                                                                                                                                             |
 | 📁&nbsp;&nbsp;`source/`           | Where the resolved keymap (or a hand-exported one) lives.                                                                                                                                                                                                                                                                                |
-| 🧪&nbsp;&nbsp;`tests/`            | Unit tests for install-layout discovery, the editor picker, and conflict resolution.                                                                                                                                                                                                                                                     |
+| 🧪&nbsp;&nbsp;`tests/`            | Unit tests for install-layout discovery, the editor picker, conflict resolution, and layer stacking.                                                                                                                                                                                                                                     |
 
 > [!NOTE]
 > Everything tracked in git is machine-independent. The per-user build outputs
@@ -137,26 +141,36 @@ and stops at the first failure.
 
 ---
 
-## 🎛️ `overrides.jsonc` — the curated layer
+## 🎛️ Curated layers
 
 `generate.py` does a faithful, mechanical translation of your JetBrains keymap.
-`overrides.jsonc` is the small **human layer** on top of it — the place for the
-handful of decisions a machine cannot make for you. It is *not* a catalogue of
-available shortcuts; it is three lists:
+The curated layers are the small **human part** on top of it — the place for
+the handful of decisions a machine cannot make for you.
 
-| Key                                     | What it does                                                                                                                                                                                   | Typical use                                                                                                                                                                                                                                                                                   |
-|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🥇&nbsp;&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards (`Ctrl + C` only when the terminal is *not* focused, so the shell keeps `Ctrl + C`) `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire; deliberate choices like `Ctrl + Y` = redo, zoom on the numpad, `Shift + Enter` = terminal newline. Keep it small. |
-| ➕&nbsp;&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                                                                                                                                                                                            |
-| 🚫&nbsp;&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates (e.g. a second action that also wants `Ctrl + D`).                                                                                                                                                                                                               |
+| Layer                                          | Applied                                    | What it holds                                                                                                                                                                                        |
+|------------------------------------------------|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🧱&nbsp;&nbsp;`overrides.jsonc`                | always                                     | Keymap- and machine-neutral fixes: extra action mappings, noise drops, `F7` split between Step Into and Next Difference, `F2` next error.                                                              |
+| 🪟&nbsp;&nbsp;`layers/windows-keymap.jsonc`    | `--layer windows-keymap`                   | For a **Ctrl-based** keymap (`$default`, *Default for XWin*, KDE, GNOME): the terminal keeps `Ctrl + C` / `D` / `R`, and on macOS the stock `Cmd` shortcuts are removed so they don't fire as well. |
+| ⌨️&nbsp;&nbsp;`layers/karabiner-winkeys.jsonc` | `--layer karabiner-winkeys`                | Companion to the [Karabiner `[winkeys]` rules](https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos): `Alt + ←/→` word jump, `Home`/`End`, tab switching moved to `Ctrl + Cmd + ←/→`. |
+| 👤&nbsp;&nbsp;*your own file*                   | `--layer path/to/mine.jsonc`               | Personal choices (e.g. `Ctrl + Y` = redo). Keep it next to your dotfiles, not in this repo.                                                                                                        |
 
-**Why it exists:** some shortcuts are genuinely ambiguous once they leave the
-IDE. The integrated terminal needs `Ctrl + C` /
-`Ctrl + D` / `Ctrl + R`; macOS binds some
-combos at the OS level; a few IntelliJ actions have two ids on the same key.
-`overrides.jsonc` records those decisions once, in one readable file, so every
-regeneration keeps them. After editing it, re-run `./port.py` (or
-`./port.py --skip-resolve` to skip the IDE read).
+Layers stack in order: `overrides.jsonc`, then each `--layer` in the order
+given. A later layer wins. Its `entries` come later in the file, and VS Code
+applies *"last entry wins"*. Its `manualActionCommand` rows replace earlier ones,
+and `dropActions` from all layers add up. Without `--layer` you get a plain,
+faithful port. `generate.py` tells you when a Ctrl-based keymap on a Mac probably
+wants `--layer windows-keymap`.
+
+Every layer is a JSONC object with up to three lists:
+
+| Key                                     | What it does                                                                                                                                                                                   | Typical use                                                                                                           |
+|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| 🥇&nbsp;&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards, `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire, deliberate deviations.        |
+| ➕&nbsp;&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                    |
+| 🚫&nbsp;&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates, or free a key you reassign in `entries`.                                                |
+
+After editing a layer, re-run `./port.py` with the same `--layer` flags (or add
+`--skip-resolve` to skip the IDE read).
 
 > [!IMPORTANT]
 > Rule of thumb for `when` clauses: only `!editorReadonly` and `!terminalFocus`
@@ -275,14 +289,26 @@ Install a different keybindings file instead of the freshly generated one.
 <tr><td>
 
 ```sh
+./port.py --layer windows-keymap --layer ~/dotfiles/mine.jsonc
+```
+
+</td><td>
+
+Stack curated layers on top of `overrides.jsonc`, in the order given: a bundled
+one from `layers/` by name, or your own `.jsonc` file by path. Repeatable.
+
+</td></tr>
+<tr><td>
+
+```sh
 ./port.py --skip-resolve
 ```
 
 </td><td>
 
 Reuse the existing `source/*.resolved.xml` (or a hand-exported `source/*.xml`)
-— no JetBrains IDE needed. Use on an IDE-less machine, or after editing
-`overrides.jsonc`.
+— no JetBrains IDE needed. Use on an IDE-less machine, or after editing a
+curated layer.
 
 </td></tr>
 <tr><td>
@@ -336,23 +362,23 @@ on top of those. It has two blocks, marked by `// ----` comments:
 | Block                                              | Each line                                                                                                                                                                                          |
 |----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 🏗️&nbsp;&nbsp;**generated**                        | One entry per keymap action that has a VS Code command **and** sits on a different key than the VS Code / `k--kato` default for this OS. Keys the shell needs also get `"when": "!terminalFocus"`. |
-| 🎛️&nbsp;&nbsp;**`overrides.jsonc`&nbsp;`entries`** | The curated hand-layer, appended **last** so it wins.                                                                                                                                              |
+| 🎛️&nbsp;&nbsp;**curated layers&nbsp;`entries`**    | One block per layer (`overrides.jsonc`, then each `--layer`), appended **last** so they win.                                                                                                       |
 
 Every run writes a `report.md` that accounts for **all** of it. The figures
 below are from the bundled sample keymap — the full output is committed as the
-**[example report](docs/example-report.md)** (`source/default.xml`, 483 actions):
+**[example report](docs/example-report.md)** (`source/default.xml`, the stock `$default` keymap, 485 actions, no layers):
 
 | `report.md` section | Sample | Meaning |
 |---|--:|---|
-| generated → emitted | **117** | actions that became a `keybindings.json` entry |
-| curated base (`overrides.jsonc`) | **74** | hand-layer entries appended last |
-| already covered by base / extension | **51** | same key + command already shipped — skipped |
-| no VS Code command mapping | **327** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
-| mouse shortcuts | **16** | `keybindings.json` cannot express mouse bindings |
+| generated → emitted | **141** | actions that became a `keybindings.json` entry |
+| curated entries | **4** | entries from the curated layers, appended last |
+| already covered by the layers / extension | **24** | same key + command already shipped — skipped |
+| no VS Code command mapping | **329** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
+| mouse shortcuts | **14** | `keybindings.json` cannot express mouse bindings |
 | key could not be translated | **0** | an AWT keystroke with no VS Code token |
 
 `report.md` also lists key collisions: resolved by keymap order (earlier action
-wins), left unresolved (fix in `overrides.jsonc`), or overridden on purpose.
+wins), left unresolved (fix in a layer), or overridden on purpose.
 
 > [!NOTE]
 > A shortcut that is **not** in the file is not *"missing"* — it just has no
@@ -405,35 +431,38 @@ Extended key codes (`#100XXXX`) are decoded to their character and mapped to a V
 
 ## ⚖️ Known trade-offs
 
-*(edit `overrides.jsonc` to change any of these)*
+| Key                        | This port                                         | Layer                        | Note                                                                 |
+|----------------------------|---------------------------------------------------|------------------------------|----------------------------------------------------------------------|
+| `F7`                       | Step Into (debug) / Next Diff                     | `overrides.jsonc`            | both from the keymap; no-op outside their context                    |
+| `Ctrl + Shift + C` / `V`   | terminal: copy / paste                            | `windows-keymap`             | the editor keeps whatever the keymap puts there                      |
+| `Cmd + C` / `S` / `F` / …  | **removed** (macOS)                               | `windows-keymap`             | so only the Ctrl binding fires                                       |
+| `Alt + ←` / `→`            | word jump (not tab switching)                     | `karabiner-winkeys`          | tabs move to `Ctrl + Cmd + ←` / `→`                                  |
+| `Home` / `End`             | line start / end (not smart home)                 | `karabiner-winkeys`          | matches the Karabiner rules; also works in the agent-chat input      |
+| 🖱️ mouse shortcuts         | **not ported**                                    | –                            | `keybindings.json` has no mouse bindings — see `report.md`           |
 
-| Key                         | This port                                         | Note                                                                                  |
-|-----------------------------|---------------------------------------------------|---------------------------------------------------------------------------------------|
-| `Ctrl + numpad +` `+` / `-` | zoom in / out                                     | fold-all loses the bare-numpad combo; **fold still works on `Ctrl + =` / `Ctrl + -`** |
-| `Ctrl + Y`                  | redo                                              | matches this keymap (`$Redo`); `Ctrl + Shift + Z` also redoes                         |
-| `Ctrl + S`                  | save current file                                 | the keymap puts *Save All* here; VS Code auto-save covers the rest                    |
-| `Ctrl + ,`                  | Settings UI                                       | keymap also has `Ctrl + Alt + S`                                                      |
-| `F7`                        | Step Into (debug) / Next Diff                     | both from the keymap; no-op outside their context                                     |
-| `Ctrl + Shift + C`          | terminal: copy selection / editor: copy file path | different `when` contexts                                                             |
-| `Shift + Enter`             | terminal: send `ESC CR` / editor: new line below  | different `when` contexts                                                             |
-| `Ctrl + §` (`[Backquote]`)  | comment line                                      | decoded from `ctrl #10000a7`; also on `Ctrl + /`                                      |
-| 🖱️ mouse shortcuts          | **not ported**                                    | `keybindings.json` has no mouse bindings — see `report.md`                            |
+> [!WARNING]
+> **Characters typed with Option / AltGr (macOS).** On Swiss / German layouts
+> AltGr is `Option`, so `Option + 2` / `3` / `7` type `@` `#` `|`. macOS apps
+> cannot tell left from right Option, so a JetBrains shortcut on `Alt + <digit>`
+> (the Windows-style tool-window keys) is ported as `alt+<digit>` and swallows
+> those characters in VS Code too. Move such shortcuts in your JetBrains keymap
+> to a combination that types nothing, then re-run the port.
 
 ---
 
 ## ✅ Verify after install
 
 Reload each editor window, then spot-check with the **editor** focused (not the
-terminal):
+terminal). With the bundled `$default` keymap (or any Ctrl-based one) plus
+`--layer windows-keymap`:
 
 | Shortcut                                                          | Expected                          |
 |-------------------------------------------------------------------|-----------------------------------|
-| `Ctrl + D` · `Ctrl + Y`                                           | duplicate line · redo             |
+| `Ctrl + D`                                                        | duplicate line                    |
 | `Ctrl + W` · `Ctrl + Shift + W`                                   | expand · shrink selection         |
 | `Ctrl + B` · `Ctrl + Alt + B`                                     | go to definition · implementation |
 | `Ctrl + Alt + L` · `Ctrl + /`                                     | reformat · comment line           |
-| `Ctrl + Shift + A` · `Ctrl + O` / `Ctrl + Shift + O` · `Ctrl + O` | Find Action · Go to Class / File  |
-| `Alt + ` `1` /  `2` /  `3`                                        | Explorer / Search / SCM           |
+| `Ctrl + Shift + A` · `Ctrl + N` / `Ctrl + Shift + N`              | Find Action · Go to Class / File  |
 | terminal: `Ctrl + C` `Ctrl + D` `Ctrl + R` `Ctrl + P`             | still hit the shell               |
 
 ---

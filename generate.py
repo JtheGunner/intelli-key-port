@@ -10,29 +10,33 @@ Pipeline
 2. Translate every IntelliJ action id -> VS Code command via
    `ActionIdCommandMapping.json` from the installed
    `k--kato.intellij-idea-keybindings` extension (see kkato.py; falls back to
-   `vendor/kkato/`) plus `overrides.jsonc` -> `manualActionCommand`.
+   `vendor/kkato/`) plus `manualActionCommand` from the curated layers.
 3. Translate every AWT keystroke token -> VS Code key token via
    `KeystrokeKeyMapping.json` (same source) plus a few hard-coded rules.
-4. Drop anything already provided identically by the curated base
-   (`overrides.jsonc` -> `entries`) or by the extension's shipped bindings
-   (`default/<OS>/VSCode.json`, matched to this platform).
+4. Drop anything already provided identically by the curated layers or by the
+   extension's shipped bindings (`default/<OS>/VSCode.json`, matched to this
+   platform).
 5. Emit `keybindings.generated.json`:
       <header>
       [ ...generated entries...,
-        ...overrides.jsonc "entries" verbatim (LAST so they win)... ]
-6. Emit `report.md`: what mapped, what the base already covered, what has no
-   VS Code equivalent, and the mouse shortcuts (not portable).
+        ...curated `entries`, layer by layer (LAST so they win)... ]
+6. Emit `report.md`: what mapped, what the curated layers already covered, what
+   has no VS Code equivalent, and the mouse shortcuts (not portable).
+
+Curated layers
+--------------
+`overrides.jsonc` is always applied and stays keymap- and machine-neutral.
+`--layer NAME` stacks `layers/NAME.jsonc` on top (e.g. `windows-keymap` for a
+Ctrl-based keymap on macOS); `--layer PATH` stacks your own file. Later layers
+win.
 
 Design note
 -----------
-The PhpStorm export is a *Windows* keymap: it uses the physical Ctrl key.
-On macOS the k--kato extension rebinds IntelliJ actions to Cmd. This user
-deliberately wants Windows/PC muscle memory (see the Karabiner + "Default
-for XWin" setup), so generated entries keep `ctrl` literally and, being
-user keybindings loaded after the extension, win over the extension's
-Cmd bindings for every action we map. Actions we cannot map fall through
-to the extension (Cmd-based) - listed in report.md so the mapping table
-in overrides.jsonc can be extended over time.
+Keystrokes are ported literally: a Ctrl-based keymap ($default / XWin) keeps
+`ctrl`, a macOS keymap keeps `cmd`. Being user keybindings loaded after the
+k--kato extension, generated entries win over the extension's bindings for
+every action we map. Actions we cannot map fall through to the extension -
+listed in report.md so `manualActionCommand` can be extended over time.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ import json
 import re
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import kkato
@@ -48,6 +53,8 @@ import kkato
 ROOT = Path(__file__).resolve().parent
 SOURCE_DIR = ROOT / "source"
 OVERRIDES_PATH = ROOT / "overrides.jsonc"
+LAYERS_DIR = ROOT / "layers"
+LAYER_KEYS = {"manualActionCommand", "dropActions", "entries"}
 OUT_KEYBINDINGS = ROOT / "keybindings.generated.json"
 OUT_REPORT = ROOT / "report.md"
 
@@ -152,17 +159,18 @@ def find_key_conflicts(generated: list[dict], base_entries: list[dict]):
     Returns (hard, soft):
       hard - the clash is entirely inside the generated block; nobody has picked
              a winner. Gets a stderr warning.
-      soft - overrides.jsonc also binds the key, so a human already chose. Only
-             reported.
+      soft - a curated layer (overrides.jsonc or a --layer) also binds the key,
+             so a human already chose. Only reported.
     `-command` removals and pairs with mutually exclusive `when` clauses are not
     counted as conflicts.
     """
     from collections import defaultdict
     slots: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
-    for origin, entries in (("generated", generated), ("overrides.jsonc", base_entries)):
+    for default_origin, entries in (("generated", generated), ("overrides.jsonc", base_entries)):
         for e in entries:
             cmd = e.get("command", "")
             if not cmd.startswith("-"):
+                origin = e.get("_layer", default_origin)
                 slots[e["key"]].append((cmd, e.get("when", ""), origin))
 
     hard, soft = [], []
@@ -175,7 +183,7 @@ def find_key_conflicts(generated: list[dict], base_entries: list[dict]):
                        for j, y in enumerate(binds) if j != i)]
         if len({c for c, _, _ in live}) < 2:
             continue
-        bucket = soft if any(o == "overrides.jsonc" for _, _, o in live) else hard
+        bucket = soft if any(o != "generated" for _, _, o in live) else hard
         bucket.append((key, binds))
     return hard, soft
 
@@ -219,6 +227,102 @@ def strip_jsonc(text: str) -> str:
 
 def load_jsonc(path: Path):
     return json.loads(strip_jsonc(path.read_text(encoding="utf-8")))
+
+
+@dataclass
+class Overrides:
+    """The base overrides.jsonc plus every --layer, stacked in order."""
+    layers: list[str] = field(default_factory=list)
+    manual_action_command: dict[str, str] = field(default_factory=dict)
+    drop_actions: set[str] = field(default_factory=set)
+    drop_origin: dict[str, str] = field(default_factory=dict)
+    entries: list[dict] = field(default_factory=list)   # each tagged with `_layer`
+
+
+def resolve_layer(spec: str) -> Path:
+    """`--layer NAME` -> layers/NAME.jsonc; `--layer PATH` -> that file."""
+    looks_like_path = "/" in spec or "\\" in spec or spec.endswith((".jsonc", ".json"))
+    if looks_like_path:
+        path = Path(spec).expanduser()
+        if not path.is_file():
+            raise SystemExit(f"layer file not found: {spec}")
+        return path.resolve()
+    named = LAYERS_DIR / f"{spec}.jsonc"
+    if named.is_file():
+        return named
+    available = ", ".join(sorted(p.stem for p in LAYERS_DIR.glob("*.jsonc"))) or "none"
+    raise SystemExit(f"unknown layer '{spec}' - bundled layers: {available}; "
+                     f"or pass the path to your own .jsonc file")
+
+
+def _layer_label(path: Path) -> str:
+    if path == OVERRIDES_PATH:
+        return "overrides.jsonc"
+    if path.parent == LAYERS_DIR:
+        return f"layer:{path.stem}"
+    return path.name
+
+
+def _load_layer(path: Path, label: str) -> dict:
+    try:
+        data = load_jsonc(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"{label}: cannot read {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit(f"{label}: top level must be an object")
+    unknown = set(data) - LAYER_KEYS
+    if unknown:
+        raise SystemExit(f"{label}: unknown key(s) {sorted(unknown)} - "
+                         f"allowed: {sorted(LAYER_KEYS)}")
+    if not isinstance(data.get("manualActionCommand", {}), dict):
+        raise SystemExit(f"{label}: manualActionCommand must be an object")
+    if not isinstance(data.get("dropActions", []), list):
+        raise SystemExit(f"{label}: dropActions must be a list")
+    entries = data.get("entries", [])
+    if not isinstance(entries, list):
+        raise SystemExit(f"{label}: entries must be a list")
+    for e in entries:
+        if not (isinstance(e, dict) and isinstance(e.get("key"), str)
+                and isinstance(e.get("command"), str)):
+            raise SystemExit(f"{label}: every entry needs a string key and command: {e!r}")
+    return data
+
+
+def load_overrides(layer_specs: list[str]) -> Overrides:
+    """Stack overrides.jsonc and the given layers. Later layers win: their
+    entries come later in the file (VS Code: last entry wins) and their
+    manualActionCommand rows replace earlier ones; dropActions accumulate."""
+    paths = [OVERRIDES_PATH] + [resolve_layer(s) for s in layer_specs]
+    if len(set(paths)) != len(paths):
+        raise SystemExit(f"a layer is given twice: {layer_specs}")
+    ov = Overrides()
+    for path in paths:
+        label = _layer_label(path)
+        data = _load_layer(path, label)
+        ov.layers.append(label)
+        ov.manual_action_command.update(data.get("manualActionCommand", {}))
+        for aid in data.get("dropActions", []):
+            ov.drop_actions.add(aid)
+            ov.drop_origin[aid] = label
+        ov.entries += [dict(e, _layer=label) for e in data.get("entries", [])]
+    return ov
+
+
+_CHAIN_RE = re.compile(r"inheritance chain:\s*(.+?)\s*-->")
+_MAC_KEYMAP_PREFIXES = ("Mac OS X", "macOS")
+
+
+def keymap_chain(source_xml: Path) -> list[str]:
+    """Parent chain written by resolve_keymap.py into the resolved file's header
+    ($default -> ... -> active keymap). Empty for a raw export."""
+    head = source_xml.read_text(encoding="utf-8")[:2048]
+    m = _CHAIN_RE.search(head)
+    return [n.strip() for n in m.group(1).split("->")] if m else []
+
+
+def is_ctrl_keymap(chain: list[str]) -> bool:
+    """True for the Ctrl-based family ($default / XWin / KDE / GNOME)."""
+    return bool(chain) and not any(n.startswith(_MAC_KEYMAP_PREFIXES) for n in chain)
 
 
 def load_key_map(res_dir: Path) -> dict[str, str | None]:
@@ -348,12 +452,23 @@ def parse_source(path: Path):
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    argparse.ArgumentParser(
+    ap = argparse.ArgumentParser(
         description="Generate keybindings.generated.json + report.md from "
-                    "source/*.resolved.xml (or a raw source/*.xml export). No options.",
-    ).parse_args(argv)
+                    "source/*.resolved.xml (or a raw source/*.xml export).",
+    )
+    ap.add_argument("--layer", action="append", default=[], metavar="NAME|PATH",
+                    help="stack an override layer on top of overrides.jsonc: a bundled "
+                         "one (layers/NAME.jsonc) or your own .jsonc file (repeatable, "
+                         "applied in order)")
+    args = ap.parse_args(argv)
+    overrides = load_overrides(args.layer)
     source_xml = resolve_source_xml()
     print(f"source: {source_xml.relative_to(ROOT)}")
+    print(f"layers: {' + '.join(overrides.layers)}")
+    if (sys.platform == "darwin" and "layer:windows-keymap" not in overrides.layers
+            and is_ctrl_keymap(keymap_chain(source_xml))):
+        print("  hint: this is a Ctrl-based keymap - add `--layer windows-keymap` to keep "
+              "terminal control keys and drop the stock Cmd shortcuts", file=sys.stderr)
 
     res_dir, kk_ver, kk_src = kkato.resolve()
     print(f"k--kato: {kk_src}  v{kk_ver}")
@@ -362,10 +477,9 @@ def main(argv: list[str] | None = None) -> int:
               f"run `./port.py --sync-vendor` to refresh the offline fallback",
               file=sys.stderr)
 
-    overrides = load_jsonc(OVERRIDES_PATH)
-    manual_action_command = overrides.get("manualActionCommand", {})
-    base_entries = overrides.get("entries", [])
-    drop_actions = set(overrides.get("dropActions", []))
+    manual_action_command = overrides.manual_action_command
+    base_entries = overrides.entries
+    drop_actions = overrides.drop_actions
 
     key_map = load_key_map(res_dir)
     action_map = load_action_map(res_dir, manual_action_command)
@@ -391,7 +505,7 @@ def main(argv: list[str] | None = None) -> int:
 
         commands = action_map.get(aid)
         if aid in drop_actions:
-            rep_covered.append(f"{aid}  (explicitly dropped in overrides.jsonc)")
+            rep_covered.append(f"{aid}  (explicitly dropped by {overrides.drop_origin[aid]})")
             continue
         if not commands:
             if keystrokes:
@@ -434,23 +548,24 @@ def main(argv: list[str] | None = None) -> int:
         "// ============================================================================\n"
         "// GENERATED by intelli-key-port/generate.py  -  DO NOT EDIT BY HAND.\n"
         f"// Source of truth: {src_rel} (resolved from the IDE's active keymap).\n"
-        "// Curated base + terminal-signal guards live in overrides.jsonc and are\n"
-        "// appended verbatim at the BOTTOM of this array (VS Code: last entry wins).\n"
-        "// Rebuild + deploy:  ./port.py       (or: python3 generate.py && python3 install.py)\n"
+        f"// Curated layers: {' + '.join(overrides.layers)} - appended verbatim at the\n"
+        "// BOTTOM of this array, in that order (VS Code: last entry wins).\n"
+        "// Rebuild + deploy:  ./port.py [--layer ...]\n"
         "// ============================================================================\n"
     )
 
-    body_generated = ",\n".join("  " + json.dumps(e) for e in generated)
-    body_overrides = ",\n".join("  " + json.dumps(e) for e in base_entries)
-    parts = [p for p in (body_generated, body_overrides) if p]
+    sections = []
+    if generated:
+        sections.append(f"\n  // ---- generated from {src_rel} ----\n"
+                        + ",\n".join("  " + json.dumps(e) for e in generated))
+    for label in overrides.layers:
+        rows = [{k: v for k, v in e.items() if k != "_layer"}
+                for e in base_entries if e["_layer"] == label]
+        if rows:
+            sections.append(f"\n  // ---- {label} (curated, wins on conflict) ----\n"
+                            + ",\n".join("  " + json.dumps(e) for e in rows))
     OUT_KEYBINDINGS.write_text(
-        header
-        + "[\n"
-        + f"\n  // ---- generated from {src_rel} ----\n"
-        + (body_generated + ",\n" if body_generated else "")
-        + "\n  // ---- overrides.jsonc (curated base, wins on conflict) ----\n"
-        + body_overrides
-        + "\n]\n",
+        header + "[\n" + ",\n".join(sections) + "\n]\n",
         encoding="utf-8",
     )
 
@@ -481,13 +596,14 @@ def main(argv: list[str] | None = None) -> int:
         f"- source file: `{src_rel}`\n"
         f"- source actions parsed: **{len(source)}**\n"
         f"- generated entries: **{len(generated)}**\n"
-        f"- curated base entries (overrides.jsonc): **{len(base_entries)}**\n"
+        f"- curated layers: {', '.join(f'`{x}`' for x in overrides.layers)}\n"
+        f"- curated entries: **{len(base_entries)}**\n"
         f"- total in keybindings.generated.json: **{len(generated) + len(base_entries)}**\n\n"
         + order_block("Key conflicts - resolved by keymap order (earlier action wins)", order_resolved)
         + "\n"
-        + conflict_block("Key conflicts - no winner picked (resolve in overrides.jsonc)", hard_conflicts)
+        + conflict_block("Key conflicts - no winner picked (resolve in a layer)", hard_conflicts)
         + "\n"
-        + conflict_block("Key conflicts - overrides.jsonc picks the winner", soft_conflicts)
+        + conflict_block("Key conflicts - a curated layer picks the winner", soft_conflicts)
         + "\n"
         + block("Mapped -> emitted", rep_mapped)
         + "\n"
@@ -501,7 +617,7 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    print(f"generated {len(generated)} entries + {len(base_entries)} base -> {OUT_KEYBINDINGS.name}")
+    print(f"generated {len(generated)} entries + {len(base_entries)} curated -> {OUT_KEYBINDINGS.name}")
     print(f"report -> {OUT_REPORT.name}  "
           f"(unmapped={len(set(rep_unmapped))}, covered={len(set(rep_covered))}, "
           f"badkey={len(set(rep_badkey))}, mouse={len(set(rep_mouse))}, "
@@ -517,8 +633,8 @@ def main(argv: list[str] | None = None) -> int:
         for key, binds in hard_conflicts:
             cmds = ", ".join(sorted({c for c, _, _ in binds}))
             print(f"  {key}  ->  {cmds}", file=sys.stderr)
-        print("  resolve by adding an entry to overrides.jsonc `entries`, or the "
-              "IntelliJ action to `dropActions`.", file=sys.stderr)
+        print("  resolve by adding an entry to a layer's `entries`, or the "
+              "IntelliJ action to its `dropActions`.", file=sys.stderr)
     return 0
 
 

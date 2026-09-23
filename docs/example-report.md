@@ -1,57 +1,47 @@
 <!--
 Sample output — committed on purpose (unlike the per-user report.md, which is git-ignored).
-Produced by `python3 generate.py` from the bundled `source/default.xml`.
-Regenerate with:  cp report.md docs/example-report.md
+Produced by `python3 generate.py` (no layers) from the bundled `source/default.xml` —
+the stock IntelliJ `$default` keymap. Regenerate with:  cp report.md docs/example-report.md
 -->
 
-- total in keybindings.generated.json: **191**
+# IntelliKeyPort - keymap port report (IntelliJ -> VS Code)
 
-## Key conflicts - resolved by keymap order (earlier action wins)  (0)
+- source file: `source/default.xml`
+- source actions parsed: **485**
+- generated entries: **141**
+- curated layers: `overrides.jsonc`
+- curated entries: **4**
+- total in keybindings.generated.json: **145**
+
+## Key conflicts - resolved by keymap order (earlier action wins)  (1)
+
+```
+ctrl+e   keep workbench.action.openRecent   drop workbench.action.openPreviousEditorFromHistory
+```
+
+## Key conflicts - no winner picked (resolve in a layer)  (0)
 
 _none_
 
-## Key conflicts - no winner picked (resolve in overrides.jsonc)  (0)
+## Key conflicts - a curated layer picks the winner  (0)
 
 _none_
 
-## Key conflicts - overrides.jsonc picks the winner  (8)
-
-```
-ctrl+,
-    workbench.action.openGlobalSettings  [always]  (generated)
-    workbench.action.openSettings  [always]  (overrides.jsonc)
-ctrl+e
-    workbench.action.openPreviousEditorFromHistory  [!terminalFocus]  (generated)
-    workbench.action.openRecent  [!terminalFocus]  (overrides.jsonc)
-ctrl+numpad_add
-    editor.unfold  [always]  (generated)
-    workbench.action.zoomIn  [always]  (overrides.jsonc)
-ctrl+numpad_subtract
-    editor.fold  [always]  (generated)
-    workbench.action.zoomOut  [always]  (overrides.jsonc)
-ctrl+s
-    workbench.action.files.saveAll  [!terminalFocus]  (generated)
-    workbench.action.files.save  [always]  (overrides.jsonc)
-ctrl+shift+c
-    copyFilePath  [always]  (generated)
-    workbench.action.terminal.copySelection  [terminalFocus && terminalHasBeenCreated && terminalTextSelected]  (overrides.jsonc)
-ctrl+shift+numpad_add
-    editor.unfoldAll  [always]  (generated)
-    workbench.action.zoomIn  [always]  (overrides.jsonc)
-shift+enter
-    editor.action.insertLineAfter  [always]  (generated)
-    workbench.action.terminal.sendSequence  [terminalFocus]  (overrides.jsonc)
-```
-
-## Mapped -> emitted  (117)
+## Mapped -> emitted  (142)
 
 ```
 acceptAlternativeSelectedSuggestion  <-  tab  (EditorChooseLookupItemReplace)
 acceptSelectedSuggestion  <-  ctrl+shift+enter  (EditorCompleteStatement)
 breadcrumbs.focus  <-  alt+home  (ShowNavBar)
 copyFilePath  <-  ctrl+shift+c  (CopyPaths)
+cursorBottom  <-  ctrl+end  (EditorTextEnd)
 cursorBottom  <-  ctrl+pagedown  (EditorMoveToPageBottom)
 cursorBottomSelect  <-  ctrl+shift+pagedown  (EditorMoveToPageBottomWithSelection)
+cursorLineEnd  <-  end  (EditorLineEnd)
+cursorLineEndSelect  <-  shift+end  (EditorLineEndWithSelection)
+cursorLineStart  <-  home  (EditorLineStart)
+cursorLineStartSelect  <-  shift+home  (EditorLineStartWithSelection)
+cursorTop  <-  ctrl+home  (EditorTextStart)
 cursorTop  <-  ctrl+pageup  (EditorMoveToPageTop)
 cursorTopSelect  <-  ctrl+shift+pageup  (EditorMoveToPageTopWithSelection)
 cursorUndo  <-  shift+alt+j  (UnselectPreviousOccurrence)
@@ -64,16 +54,23 @@ deleteWordRight  <-  ctrl+delete  (EditorDeleteToWordEnd)
 editor.action.addSelectionToNextFindMatch  <-  alt+j  (SelectNextOccurrence)
 editor.action.blockComment  <-  ctrl+shift+/  (CommentByBlockComment)
 editor.action.blockComment  <-  ctrl+shift+numpad_divide  (CommentByBlockComment)
+editor.action.clipboardCopyAction  <-  ctrl+c  ($Copy)
 editor.action.clipboardCopyAction  <-  ctrl+insert  ($Copy)
+editor.action.clipboardCutAction  <-  ctrl+x  ($Cut)
 editor.action.clipboardCutAction  <-  shift+delete  ($Cut)
+editor.action.clipboardPasteAction  <-  ctrl+v  ($Paste)
 editor.action.clipboardPasteAction  <-  shift+insert  ($Paste)
 editor.action.codeAction  <-  ctrl+alt+m  (ExtractMethod)
 editor.action.codeAction  <-  ctrl+alt+v  (IntroduceVariable)
-editor.action.commentLine  <-  ctrl+[Backquote]  (CommentByLineComment)
+editor.action.commentLine  <-  ctrl+/  (CommentByLineComment)
+editor.action.commentLine  <-  ctrl+numpad_divide  (CommentByLineComment)
+editor.action.copyLinesDownAction  <-  ctrl+d  (EditorDuplicate)
+editor.action.deleteLines  <-  ctrl+y  (EditorDeleteLine)
 editor.action.dirtydiff.next  <-  ctrl+shift+alt+down  (VcsShowNextChangeMarker)
 editor.action.dirtydiff.previous  <-  ctrl+shift+alt+up  (VcsShowPrevChangeMarker)
 editor.action.formatDocument  <-  ctrl+alt+l  (ReformatCode)
 editor.action.goToImplementation  <-  ctrl+alt+b  (GotoImplementation)
+editor.action.goToImplementation  <-  ctrl+u  (GotoSuperMethod)
 editor.action.goToTypeDefinition  <-  ctrl+shift+b  (GotoTypeDeclaration)
 editor.action.insertLineAfter  <-  shift+enter  (EditorStartNewLine)
 editor.action.insertLineBefore  <-  ctrl+alt+enter  (EditorStartNewLineBefore)
@@ -84,22 +81,27 @@ editor.action.moveLinesDownAction  <-  ctrl+shift+down  (MoveStatementDown)
 editor.action.moveLinesDownAction  <-  shift+alt+down  (MoveLineDown)
 editor.action.moveLinesUpAction  <-  ctrl+shift+up  (MoveStatementUp)
 editor.action.moveLinesUpAction  <-  shift+alt+up  (MoveLineUp)
+editor.action.nextMatchFindAction  <-  ctrl+l  (FindNext)
 editor.action.nextSelectionMatchFindAction  <-  alt+down  (MethodDown)
 editor.action.organizeImports  <-  ctrl+alt+o  (OptimizeImports)
 editor.action.previewDeclaration  <-  ctrl+shift+i  (QuickImplementations)
 editor.action.previousMatchFindAction  <-  ctrl+shift+l  (FindPrevious)
 editor.action.previousSelectionMatchFindAction  <-  alt+up  (MethodUp)
 editor.action.quickFix  <-  alt+enter  (ShowIntentionActions)
-editor.action.referenceSearch.trigger  <-  ctrl+alt+7  (ShowUsages)
+editor.action.referenceSearch.trigger  <-  ctrl+alt+f7  (ShowUsages)
 editor.action.rename  <-  shift+f6  (RenameElement)
 editor.action.revealDefinition  <-  ctrl+b  (GotoDeclaration)
 editor.action.revealDefinition  <-  f4  (EditSource)
+editor.action.selectAll  <-  ctrl+a  ($SelectAll)
 editor.action.selectHighlights  <-  ctrl+shift+alt+j  (SelectAllOccurrences)
 editor.action.showHover  <-  ctrl+q  (QuickJavaDoc)
+editor.action.smartSelect.grow  <-  ctrl+w  (EditorSelectWord)
+editor.action.smartSelect.shrink  <-  ctrl+shift+w  (EditorUnSelectWord)
+editor.action.startFindReplaceAction  <-  ctrl+r  (Replace)
 editor.action.toggleColumnSelection  <-  shift+alt+insert  (EditorToggleColumnMode)
 editor.action.transformToUppercase  <-  ctrl+shift+u  (EditorToggleCase)
 editor.action.triggerParameterHints  <-  ctrl+p  (ParameterInfo)
-editor.debug.action.runToCursor  <-  shift+alt+9  (RunToCursor)
+editor.debug.action.runToCursor  <-  alt+f9  (RunToCursor)
 editor.debug.action.selectionToRepl  <-  alt+f8  (EvaluateExpression)
 editor.debug.action.toggleBreakpoint  <-  ctrl+f8  (ToggleLineBreakpoint)
 editor.fold  <-  ctrl+-  (CollapseRegion)
@@ -110,6 +112,7 @@ editor.unfold  <-  ctrl+=  (ExpandRegion)
 editor.unfold  <-  ctrl+numpad_add  (ExpandRegion)
 editor.unfoldAll  <-  ctrl+shift+=  (ExpandAllRegions)
 editor.unfoldAll  <-  ctrl+shift+numpad_add  (ExpandAllRegions)
+git.commitAll  <-  ctrl+k  (CheckinProject)
 git.revertSelectedRanges  <-  ctrl+alt+z  (Vcs.RollbackChangedLines)
 git.sync  <-  ctrl+t  (Vcs.UpdateProject)
 java.action.showTypeHierarchy  <-  ctrl+h  (TypeHierarchy)
@@ -117,12 +120,14 @@ lineBreakInsert  <-  ctrl+enter  (EditorSplitLine)
 merge-conflict.accept.current  <-  ctrl+alt+r  (Diff.ApplyLeftSide)
 merge-conflict.accept.incoming  <-  ctrl+alt+a  (Diff.ApplyRightSide)
 outline.focus  <-  alt+7  (ActivateStructureToolWindow)
+redo  <-  ctrl+shift+z  ($Redo)
 redo  <-  shift+alt+backspace  ($Redo)
 references-view.findReferences  <-  alt+f7  (FindUsages)
 references-view.showCallHierarchy  <-  ctrl+alt+h  (CallHierarchy)
 scrollLineDown  <-  ctrl+down  (EditorScrollDown)
 scrollLineUp  <-  ctrl+up  (EditorScrollUp)
 undo  <-  alt+backspace  ($Undo)
+undo  <-  ctrl+z  ($Undo)
 workbench.action.closeActiveEditor  <-  ctrl+f4  (CloseContent)
 workbench.action.compareEditor.previousChange  <-  shift+f7  (PreviousDiff)
 workbench.action.debug.continue  <-  f9  (Resume)
@@ -135,20 +140,24 @@ workbench.action.files.saveAll  <-  ctrl+s  (SaveAll)
 workbench.action.files.showOpenedFileInNewWindow  <-  shift+f4  (EditSourceInNewWindow)
 workbench.action.findInFiles  <-  ctrl+shift+f  (FindInPath)
 workbench.action.gotoSymbol  <-  ctrl+f12  (FileStructurePopup)
-workbench.action.gotoSymbol  <-  ctrl+shift+alt+o  (GotoSymbol)
+workbench.action.gotoSymbol  <-  ctrl+shift+alt+n  (GotoSymbol)
 workbench.action.maximizeEditor  <-  ctrl+shift+f12  (HideAllWindows)
 workbench.action.navigateBack  <-  ctrl+alt+left  (Back)
 workbench.action.navigateForward  <-  ctrl+alt+right  (Forward)
 workbench.action.navigateToLastEditLocation  <-  ctrl+shift+backspace  (JumpToLastChange)
-workbench.action.openGlobalSettings  <-  ctrl+,  (ShowSettings)
+workbench.action.nextEditor  <-  alt+right  (NextTab)
+workbench.action.nextEditor  <-  shift+alt+right  (NextEditorTab)
 workbench.action.openGlobalSettings  <-  ctrl+alt+s  (ShowSettings)
 workbench.action.openPreviousEditorFromHistory  <-  ctrl+e  (RecentFiles)
-workbench.action.quickOpen  <-  ctrl+shift+o  (GotoFile)
+workbench.action.openRecent  <-  ctrl+e  (RecentFiles)
+workbench.action.previousEditor  <-  alt+left  (PreviousTab)
+workbench.action.previousEditor  <-  shift+alt+left  (PreviousEditorTab)
+workbench.action.quickOpen  <-  ctrl+shift+n  (GotoFile)
 workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup  <-  ctrl+shift+tab  (Switcher)
 workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup  <-  ctrl+tab  (Switcher)
 workbench.action.replaceInFiles  <-  ctrl+shift+r  (ReplaceInPath)
 workbench.action.selectTheme  <-  ctrl+`  (QuickChangeScheme)
-workbench.action.showAllSymbols  <-  ctrl+o  (GotoClass)
+workbench.action.showAllSymbols  <-  ctrl+n  (GotoClass)
 workbench.action.showCommands  <-  ctrl+shift+a  (GotoAction)
 workbench.action.showErrorsWarnings  <-  ctrl+f1  (ShowErrorDescription)
 workbench.action.tasks.build  <-  ctrl+f9  (CompileDirty)
@@ -165,71 +174,46 @@ workbench.view.scm  <-  alt+9  (ActivateVersionControlToolWindow)
 workbench.view.search  <-  alt+3  (ActivateFindToolWindow)
 ```
 
-## Already covered by base / extension (skipped)  (51)
+## Already covered by base / extension (skipped)  (24)
 
 ```
-CodeFloatingToolbar.GotoNextMenu  (explicitly dropped in overrides.jsonc)
-CollapseAll  (explicitly dropped in overrides.jsonc)
-CollapseRegionRecursively  (explicitly dropped in overrides.jsonc)
-CompareTwoFiles  (explicitly dropped in overrides.jsonc)
-Diff.FocusOppositePane  (explicitly dropped in overrides.jsonc)
-Diff.ShowDiff  (explicitly dropped in overrides.jsonc)
-EditorDeleteLine  (explicitly dropped in overrides.jsonc)
-ExpandAll  (explicitly dropped in overrides.jsonc)
-ExpandRegionRecursively  (explicitly dropped in overrides.jsonc)
-NextDiff  (explicitly dropped in overrides.jsonc)
-NextEditorTab  (explicitly dropped in overrides.jsonc)
-NextTab  (explicitly dropped in overrides.jsonc)
-PreviousEditorTab  (explicitly dropped in overrides.jsonc)
-PreviousTab  (explicitly dropped in overrides.jsonc)
-SearchEverywhere.NextTab  (explicitly dropped in overrides.jsonc)
-SearchEverywhere.PrevTab  (explicitly dropped in overrides.jsonc)
-StepInto  (explicitly dropped in overrides.jsonc)
-Terminal.ClearPrompt  (explicitly dropped in overrides.jsonc)
+CodeFloatingToolbar.GotoNextMenu  (explicitly dropped by overrides.jsonc)
+CollapseAll  (explicitly dropped by overrides.jsonc)
+CollapseRegionRecursively  (explicitly dropped by overrides.jsonc)
+CompareTwoFiles  (explicitly dropped by overrides.jsonc)
+Diff.FocusOppositePane  (explicitly dropped by overrides.jsonc)
+Diff.ShowDiff  (explicitly dropped by overrides.jsonc)
+ExpandAll  (explicitly dropped by overrides.jsonc)
+ExpandRegionRecursively  (explicitly dropped by overrides.jsonc)
+NextDiff  (explicitly dropped by overrides.jsonc)
+SearchEverywhere.NextTab  (explicitly dropped by overrides.jsonc)
+SearchEverywhere.PrevTab  (explicitly dropped by overrides.jsonc)
+StepInto  (explicitly dropped by overrides.jsonc)
+Terminal.ClearPrompt  (explicitly dropped by overrides.jsonc)
 acceptSelectedSuggestion  <-  enter  (EditorChooseLookupItem)
-cursorBottom  <-  ctrl+end  (EditorTextEnd)
-cursorLineEnd  <-  end  (EditorLineEnd)
-cursorLineEndSelect  <-  shift+end  (EditorLineEndWithSelection)
-cursorLineStart  <-  home  (EditorLineStart)
-cursorLineStartSelect  <-  shift+home  (EditorLineStartWithSelection)
 cursorPageDown  <-  pagedown  (EditorPageDown)
 cursorPageDownSelect  <-  shift+pagedown  (EditorPageDownWithSelection)
 cursorPageUp  <-  pageup  (EditorPageUp)
 cursorPageUpSelect  <-  shift+pageup  (EditorPageUpWithSelection)
-cursorTop  <-  ctrl+home  (EditorTextStart)
-editor.action.clipboardCopyAction  <-  ctrl+c  ($Copy)
-editor.action.clipboardCutAction  <-  ctrl+x  ($Cut)
-editor.action.clipboardPasteAction  <-  ctrl+v  ($Paste)
-editor.action.commentLine  <-  ctrl+/  (CommentByLineComment)
-editor.action.commentLine  <-  ctrl+numpad_divide  (CommentByLineComment)
-editor.action.copyLinesDownAction  <-  ctrl+d  (EditorDuplicate)
-editor.action.goToImplementation  <-  ctrl+u  (GotoSuperMethod)
 editor.action.marker.next  <-  f2  (GotoNextError)
 editor.action.marker.prev  <-  shift+f2  (GotoPreviousError)
-editor.action.nextMatchFindAction  <-  ctrl+l  (FindNext)
 editor.action.nextMatchFindAction  <-  f3  (FindNext)
 editor.action.previousMatchFindAction  <-  shift+f3  (FindPrevious)
-editor.action.selectAll  <-  ctrl+a  ($SelectAll)
-editor.action.smartSelect.grow  <-  ctrl+w  (EditorSelectWord)
-editor.action.smartSelect.shrink  <-  ctrl+shift+w  (EditorUnSelectWord)
-editor.action.startFindReplaceAction  <-  ctrl+r  (Replace)
 editor.action.triggerSuggest  <-  ctrl+space  (CodeCompletion)
-git.commitAll  <-  ctrl+k  (CheckinProject)
-redo  <-  ctrl+shift+z  ($Redo)
-undo  <-  ctrl+z  ($Undo)
 workbench.action.gotoLine  <-  ctrl+g  (GotoLine)
-workbench.action.openRecent  <-  ctrl+e  (RecentFiles)
 ```
 
-## No VS Code command mapping (fell through to extension / lost)  (327)
+## No VS Code command mapping (fell through to extension / lost)  (329)
 
 ```
 $Delete  <-  DELETE
 ActivateBookmarksToolWindow  <-  alt 2
 ActivateCommitToolWindow  <-  alt 0
+ActivateNuGetToolWindow  <-  alt shift 7
 ActivateProblemsViewToolWindow  <-  alt 6
 ActivateRunToolWindow  <-  alt 4
 ActivateServicesToolWindow  <-  alt 8
+ActivateUnitTestsToolWindow  <-  alt shift 8
 Arrangement.Rule.Edit  <-  F2
 Arrangement.Rule.Match.Condition.Move.Down  <-  alt DOWN
 Arrangement.Rule.Match.Condition.Move.Up  <-  alt UP
@@ -246,6 +230,7 @@ ChangesView.Rename  <-  F2, Shift F6
 ChangesView.Revert  <-  control alt Z
 ChangesView.SetDefault  <-  control SPACE
 ChangesView.ShelveSilently  <-  shift control H
+ChangesView.ShowCommitOptions  <-  control O
 ChangesView.UnshelveSilently  <-  control alt U
 ClassNameCompletion  <-  control alt SPACE
 CloseActiveTab  <-  control shift F4
@@ -328,7 +313,7 @@ ExpressionTypeInfo  <-  control shift P
 ExternalJavaDoc  <-  shift F1
 ExternalSystem.ProjectRefreshAction  <-  control shift O
 FileChooser.GoToParent  <-  BACK_SPACE
-FileChooser.GoToRoot  <-  control SLASH
+FileChooser.GoToRoot  <-  control BACK_SLASH
 FileChooser.GotoDesktop  <-  control D
 FileChooser.GotoHome  <-  control 1
 FileChooser.GotoModule  <-  control 3
@@ -343,7 +328,7 @@ FocusEditor  <-  ESCAPE
 FocusMainToolbar  <-  alt PAGE_UP
 FocusStatusBar  <-  alt PAGE_DOWN
 ForceRefresh  <-  control shift F5
-ForceRunToCursor  <-  control alt 9
+ForceRunToCursor  <-  control alt F9
 ForceStepInto  <-  alt shift F7
 ForceStepOver  <-  alt shift F8
 FullyExpandTreeNode  <-  MULTIPLY
@@ -367,7 +352,7 @@ GotoTest  <-  control shift T
 HighlightUsagesInFile  <-  control shift F7
 HippieBackwardCompletion  <-  alt shift SLASH
 HippieCompletion  <-  alt SLASH
-Images.EditExternally  <-  control alt 4
+Images.EditExternally  <-  control alt F4
 Images.Editor.ActualSize  <-  control DIVIDE, control SLASH
 Images.Editor.ToggleGrid  <-  control QUOTE
 ImplementMethods  <-  control I
@@ -396,6 +381,7 @@ NextParameter  <-  TAB
 NextProjectWindow  <-  control alt CLOSE_BRACKET
 NextTemplateVariable  <-  TAB, ENTER
 OpenInRightSplit  <-  shift ENTER
+OverrideMethods  <-  control O
 PasteMultiple  <-  control shift V, control shift INSERT
 PopupHector  <-  ctrl alt shift H
 PrevInlineCompletionSuggestionAction  <-  alt OPEN_BRACKET
@@ -404,7 +390,7 @@ PreviousProjectWindow  <-  control alt OPEN_BRACKET
 PreviousTemplateVariable  <-  shift TAB
 PublishGroup.UploadTo  <-  shift control alt X
 QuickActionPopup  <-  control alt ENTER
-QuickEvaluateExpression  <-  control alt 8
+QuickEvaluateExpression  <-  control alt F8
 QuickPreview  <-  SPACE
 RecentLocations  <-  control shift E
 Refactorings.QuickListPopupAction  <-  control alt shift T
@@ -412,7 +398,7 @@ ReformatWithPrettierAction  <-  ctrl alt shift P
 Refresh  <-  control F5
 Rerun  <-  control F5
 RerunTests  <-  shift alt R
-ResetIdeScaleAction  <-  shift control alt 0
+ResetIdeScaleAction  <-  shift alt 0
 ResizeToolWindowDown  <-  control alt shift DOWN
 ResizeToolWindowLeft  <-  control alt shift LEFT
 ResizeToolWindowRight  <-  control alt shift RIGHT
@@ -436,12 +422,12 @@ ShelvedChanges.Rename  <-  F2, Shift F6
 ShowBookmarks  <-  shift F11
 ShowContent  <-  alt DOWN
 ShowExecutionPoint  <-  alt F10
-ShowFilePath  <-  control alt shift 2
+ShowFilePath  <-  control alt F12
 ShowFilterPopup  <-  control alt F
 ShowPopupMenu  <-  CONTEXT_MENU
 ShowReformatFileDialog  <-  control shift alt L
 ShowSearchHistory  <-  alt down
-ShowSettingsAndFindUsages  <-  control shift alt 7
+ShowSettingsAndFindUsages  <-  control shift alt F7
 ShowTypeBookmarks  <-  control shift F11
 ShowUmlDiagram  <-  control shift alt U
 ShowUmlDiagramPopup  <-  control alt U
@@ -455,9 +441,9 @@ SplitChooser.Split  <-  ENTER
 SplitChooser.SplitCenter  <-  SPACE
 Stop  <-  control F2
 StopBackgroundProcesses  <-  control shift F2
-SurroundWith  <-  control alt shift B, control alt T
+SurroundWith  <-  control alt T
 SurroundWithLiveTemplate  <-  control alt J
-SwitchCoverage  <-  control alt 6
+SwitchCoverage  <-  control alt F6
 SwitchHeaderSource  <-  F10
 SwitcherIterateItems  <-  control E
 SwitcherRecentEditedChangedToggleCheckBox  <-  control E
@@ -468,7 +454,7 @@ Table-selectLastRow  <-  control DOWN
 Table-selectLastRowExtendSelection  <-  control shift DOWN
 Table-startEditing  <-  F2
 Terminal.CloseSession  <-  control D
-Terminal.CopySelectedText  <-  control C, control INSERT, control shift C
+Terminal.CopySelectedText  <-  control C, control INSERT
 Terminal.DeletePreviousWord  <-  control W
 Terminal.LineDown  <-  control DOWN
 Terminal.LineUp  <-  control UP
@@ -526,23 +512,21 @@ VcsHistory.ShowAllAffected  <-  alt shift A
 ViewSource  <-  control ENTER
 WD.UploadCurrentRemoteFileAction  <-  shift alt Q
 WebOpenInAction  <-  alt F2
-XDebugger.AttachToProcess  <-  control alt 5
+XDebugger.AttachToProcess  <-  control alt F5
 XDebugger.JumpToTypeSource  <-  shift F4
 XDebugger.NewWatch  <-  INSERT
 XDebugger.SetValue  <-  F2
 XPathView.Actions.Evaluate  <-  control alt X , E
 XPathView.Actions.FindByExpression  <-  control alt X , F
 XPathView.Actions.ShowPath  <-  control alt X , P
-ZoomInIdeAction  <-  shift control alt EQUALS
-ZoomOutIdeAction  <-  shift control alt MINUS
+ZoomInIdeAction  <-  shift alt EQUALS
+ZoomOutIdeAction  <-  shift alt MINUS
 com.jetbrains.php.framework.FrameworkRunConsoleAction  <-  control shift X
 com.laravel_idea.plugin.GenerateHelperCodeAction  <-  control shift PERIOD
 com.laravel_idea.plugin.LaravelActionChooser  <-  control shift COMMA
 context.clear  <-  alt shift X
 context.load  <-  alt shift L
 context.save  <-  alt shift S
-copilot.disableCopilot  <-  shift ctrl alt n
-copilot.enableCopilot  <-  shift ctrl alt n
 org.intellij.plugins.markdown.ui.actions.styling.ToggleBoldAction  <-  control B
 org.intellij.plugins.markdown.ui.actions.styling.ToggleCodeSpanAction  <-  control shift C
 org.intellij.plugins.markdown.ui.actions.styling.ToggleItalicAction  <-  control I
@@ -557,7 +541,7 @@ tasks.switch  <-  alt shift T
 
 _none_
 
-## Mouse shortcuts (not portable to keybindings.json)  (16)
+## Mouse shortcuts (not portable to keybindings.json)  (14)
 
 ```
 Back  <-  mouse: button4
@@ -568,12 +552,10 @@ EditorCreateRectangularSelectionOnMouseDrag  <-  mouse: alt shift button1
 EditorCreateRectangularSelectionOnMouseDrag  <-  mouse: button2
 EditorPasteFromX11  <-  mouse: button2
 Forward  <-  mouse: button5
-GotoDeclaration  <-  mouse: button2
-GotoDeclaration  <-  mouse: control button1
-GotoDeclaration  <-  mouse: meta button1
+GotoDeclaration  <-  mouse: ctrl button1
 GotoImplementation  <-  mouse: ctrl alt button1
 GotoTypeDeclaration  <-  mouse: ctrl shift button1
 OpenInRightSplit  <-  mouse: alt button1 doubleClick
-QuickEvaluateExpression  <-  mouse: control shift alt button1
+QuickEvaluateExpression  <-  mouse: alt shift button1
 QuickJavaDoc  <-  mouse: alt button2
 ```

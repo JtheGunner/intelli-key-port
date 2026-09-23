@@ -1,0 +1,54 @@
+// ============================================================================
+// Layer `karabiner-winkeys`  (opt-in:  ./port.py --layer karabiner-winkeys)
+//
+// Companion to the Karabiner-Elements [winkeys] rules
+// (https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos),
+// which rewrite Windows-style navigation keys before VS Code sees them - in
+// some editors (e.g. Antigravity IDE) Ctrl+Left/Right arrives as Alt+Left/Right
+// and Home/End as Cmd+Left/Right. This layer makes the editor side match:
+//   - Alt+Left/Right is word jump, so IntelliJ's Alt+Left/Right tab switching
+//     moves to Ctrl+Cmd+Left/Right
+//   - Home/End go to line start / end, Ctrl+Home/End to document start / end
+//
+// Without those Karabiner rules you do not need this layer.
+// ============================================================================
+{
+  "dropActions": [
+    // Tab switching on Alt+Left / Alt+Right (from IntelliJ NextTab/PreviousTab);
+    // re-assigned to Ctrl+Cmd+Left / Ctrl+Cmd+Right below so Alt+Left/Right
+    // can be used for word jumps.
+    "NextTab",
+    "PreviousTab",
+    "NextEditorTab",
+    "PreviousEditorTab",
+    "NextWindow",
+    "PreviousWindow"
+  ],
+
+  "entries": [
+    // ---- Word jump -----------------------------------------------------------
+    // Guard is `!terminalFocus` only (no editorTextFocus): these are pure
+    // cursor/selection moves, and dropping the editor guard lets them fire in
+    // the agent-chat input widget too, not just the code editor.
+    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus" },
+    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus" },
+    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus" },
+    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus" },
+
+    // ---- Home / End / Ctrl+Home / Ctrl+End line and document navigation -----
+    { "key": "home",            "command": "cursorLineStart",         "when": "!terminalFocus" },
+    { "key": "shift+home",      "command": "cursorLineStartSelect",   "when": "!terminalFocus" },
+    { "key": "end",             "command": "cursorLineEnd",           "when": "!terminalFocus" },
+    { "key": "shift+end",       "command": "cursorLineEndSelect",     "when": "!terminalFocus" },
+    { "key": "ctrl+home",       "command": "cursorTop",               "when": "!terminalFocus" },
+    { "key": "ctrl+shift+home", "command": "cursorTopSelect",         "when": "!terminalFocus" },
+    { "key": "ctrl+end",        "command": "cursorBottom",            "when": "!terminalFocus" },
+    { "key": "ctrl+shift+end",  "command": "cursorBottomSelect",      "when": "!terminalFocus" },
+
+    // ---- Tab navigation (moved to Ctrl+Cmd+Left/Right, see dropActions) ------
+    { "key": "ctrl+cmd+left",        "command": "workbench.action.previousEditor", "when": "!terminalFocus" },
+    { "key": "ctrl+cmd+right",       "command": "workbench.action.nextEditor",     "when": "!terminalFocus" },
+    { "key": "ctrl+cmd+shift+left",  "command": "workbench.action.previousEditor" },
+    { "key": "ctrl+cmd+shift+right", "command": "workbench.action.nextEditor" }
+  ]
+}
