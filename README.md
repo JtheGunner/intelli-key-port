@@ -1,4 +1,4 @@
-<div align="center">
+<div style="text-align: center;">
 
 # ⌨️ IntelliKeyPort
 
@@ -21,8 +21,7 @@ into the rest of your editors.
 ## 🎯 What it is
 
 Pick a keymap in one IntelliJ-based IDE — IntelliJ IDEA, PhpStorm, WebStorm,
-PyCharm, GoLand, DataGrip, Rider, … — and IntelliKeyPort reproduces it in the
-**VS Code family**: VS Code, VS Code Insiders, VSCodium, Cursor, Windsurf,
+PyCharm, GoLand, DataGrip, Rider, … — and IntelliKeyPort reproduces it in the **VS Code family**: VS Code, VS Code Insiders, VSCodium, Cursor, Windsurf,
 Antigravity.
 
 It does the whole trip from A to Z:
@@ -63,7 +62,7 @@ identical everywhere.
 ```
 
 `./port.py` with no arguments resolves the active keymap, regenerates
-`keybindings.generated.json`, and — when more than one editor is installed and
+`keybindings.generated.json`, and — when more than one editor is installed, and
 you are on a terminal — shows an arrow-key checkbox list so you tick the
 targets.
 
@@ -88,7 +87,6 @@ python port.py
 > [!TIP]
 > **No JetBrains IDE on this machine?** – Then you've two options
 >> 1. Export the keymap by hand (*Settings → Keymap → gear ⚙️ → Export Keymap*), drop the `.xml` into source/`
->
 >> 2. use the bundled `source/default.xml` — the stock IntelliJ `$default` keymap
 >
 > run `./port.py --skip-resolve`. That path is pure Python and needs no IDE detection.
@@ -103,15 +101,15 @@ top to bottom:
 
 ```yaml
    "IntelliJ IDE · your active keymap"
-        │
-        ▼   resolve_keymap.py:   find the IDE, flatten the parent chain
-   "source/<name>.resolved.xml"
-        │
-        ▼   generate.py:         actions → commands, keys → keys
-   "keybindings.generated.json + report.md"
-        │
-        ▼   install.py:          timestamped backup, then write
-   "VS Code · Cursor · Windsurf · Antigravity · …"
+     │
+   ▼   resolve_keymap.py: find the IDE, flatten the parent chain
+     "source/<name>.resolved.xml"
+     │
+   ▼   generate.py: actions → commands, keys → keys
+     "keybindings.generated.json + report.md"
+     │
+   ▼   install.py: timestamped backup, then write
+     "VS Code · Cursor · Windsurf · Antigravity · …"
 ```
 
 Each stage is also a standalone script; `port.py` just runs the three in order
@@ -123,7 +121,7 @@ and stops at the first failure.
 |-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 🎬&nbsp;&nbsp;`port.py`           | One-shot driver: `resolve → generate → install`. A failing stage stops the chain.                                                                                                                                                                                                                                                        |
 | 🔍&nbsp;&nbsp;`resolve_keymap.py` | **Stage 1.** Locates the JetBrains IDE (`/Applications`, Program Files, `/opt`, JetBrains Toolbox, Snap, Flatpak), finds its config directory, reads `keymap.xml` for the active keymap, walks the parent chain (`$default → … → your keymap`), and folds in plugin-registered defaults (Git, etc.). → one flat `source/*.resolved.xml`. |
-| 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + the curated layers, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                      |
+| 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + the curated layers, decodes extended key codes, adds `!terminalFocus` guards, and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                     |
 | 📦&nbsp;&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors, backs up each one's `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. Interactive checkbox picker when several editors are found.                                                                                                                         |
 | 🎛️&nbsp;&nbsp;`overrides.jsonc`   | **Base layer**, always applied: keymap- and machine-neutral fixes that steer stage 2 — see below.                                                                                                                                                                                                                                        |
 | 🧅&nbsp;&nbsp;`layers/`           | **Optional layers**, stacked on the base only with `--layer NAME` — see below.                                                                                                                                                                                                                                                           |
@@ -147,12 +145,12 @@ and stops at the first failure.
 The curated layers are the small **human part** on top of it — the place for
 the handful of decisions a machine cannot make for you.
 
-| Layer                                          | Applied                                    | What it holds                                                                                                                                                                                        |
-|------------------------------------------------|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🧱&nbsp;&nbsp;`overrides.jsonc`                | always                                     | Keymap- and machine-neutral fixes: extra action mappings, noise drops, `F7` split between Step Into and Next Difference, `F2` next error.                                                              |
-| 🪟&nbsp;&nbsp;`layers/windows-keymap.jsonc`    | `--layer windows-keymap`                   | For a **Ctrl-based** keymap (`$default`, *Default for XWin*, KDE, GNOME): the terminal keeps `Ctrl + C` / `D` / `R`, and on macOS the stock `Cmd` shortcuts are removed so they don't fire as well. |
-| ⌨️&nbsp;&nbsp;`layers/karabiner-winkeys.jsonc` | `--layer karabiner-winkeys`                | Companion to the [Karabiner `[winkeys]` rules](https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos): `Alt + ←/→` word jump, `Home`/`End`, tab switching moved to `Ctrl + Cmd + ←/→`. |
-| 👤&nbsp;&nbsp;*your own file*                   | `--layer path/to/mine.jsonc`               | Personal choices (e.g. `Ctrl + Y` = redo). Keep it next to your dotfiles, not in this repo.                                                                                                        |
+| Layer                                         | Applied                      | What it holds                                                                                                                                                                                           |
+|-----------------------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🧱&nbsp;&nbsp;`overrides.jsonc`               | always                       | Keymap- and machine-neutral fixes: extra action mappings, noise drops, `F7` split between Step Into and Next Difference, `F2` next error.                                                               |
+| 🪟&nbsp;&nbsp;`layers/windows-keymap.jsonc`   | `--layer windows-keymap`     | For a **Ctrl-based** keymap (`$default`, *Default for XWin*, KDE, GNOME): the terminal keeps `Ctrl + C` / `D` / `R`, and on macOS the stock `Cmd` shortcuts are removed so they don't fire as well.     |
+| ⌨️&nbsp;&nbsp;`layers/karabiner-winkeys.jsonc` | `--layer karabiner-winkeys`  | Companion to the [Karabiner `[winkeys]` rules](https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos): `Alt + ←/→` word jump, `Home`/`End`, tab switching moved to `Ctrl + Cmd + ←/→`. |
+| 👤&nbsp;&nbsp;*your own file*                 | `--layer path/to/mine.jsonc` | Personal choices (e.g. `Ctrl + Y` = redo). Keep it next to your dotfiles, not in this repo.                                                                                                             |
 
 Layers stack in order: `overrides.jsonc`, then each `--layer` in the order
 given. A later layer wins. Its `entries` come later in the file, and VS Code
@@ -163,11 +161,11 @@ wants `--layer windows-keymap`.
 
 Every layer is a JSONC object with up to three lists:
 
-| Key                                     | What it does                                                                                                                                                                                   | Typical use                                                                                                           |
-|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| 🥇&nbsp;&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards, `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire, deliberate deviations.        |
-| ➕&nbsp;&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.                    |
-| 🚫&nbsp;&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates, or free a key you reassign in `entries`.                                                |
+| Key                                     | What it does                                                                                                                                                                                   | Typical use                                                                                                     |
+|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| 🥇&nbsp;&nbsp;**`entries`**             | Literal VS Code keybinding rules, appended at the **very end** of `keybindings.generated.json`. VS Code applies *"last entry wins"*, so these beat both the generated block and the extension. | Terminal-signal guards, `-cmd+x` removals so a stock macOS shortcut doesn't *also* fire, deliberate deviations. |
+| ➕&nbsp;&nbsp;**`manualActionCommand`** | Extra `IntelliJ actionId → VS Code command` pairs. Feeds the generator only.                                                                                                                   | Fill gaps / fix stale rows in the vendored `k--kato` table so **more** of your keymap gets mapped.              |
+| 🚫&nbsp;&nbsp;**`dropActions`**         | IntelliJ action ids the generator must **never** emit.                                                                                                                                         | Silence noise and duplicates, or free a key you reassign in `entries`.                                          |
 
 After editing a layer, re-run `./port.py` with the same `--layer` flags (or add
 `--skip-resolve` to skip the IDE read).
@@ -195,8 +193,7 @@ the stage that needs it.
 
 </td><td>
 
-**The default.** Resolve the *active* keymap of the default JetBrains product
-(PhpStorm), regenerate, then install with the interactive picker.
+**The default.** Resolve the *active* keymap of the default JetBrains product (PhpStorm), regenerate, then install with the interactive picker.
 
 </td></tr>
 <tr><td>
@@ -220,8 +217,7 @@ Resolve a different JetBrains IDE. Known values: `PhpStorm`, `IntelliJIdea`,
 
 </td><td>
 
-Resolve a *specific* keymap instead of the IDE's active one — a built-in
-(`Default`, `macOS`, `Visual Studio`, …) or one of your own. Display names are
+Resolve a *specific* keymap instead of the IDE's active one — a built-in (`Default`, `macOS`, `Visual Studio`, …) or one of your own. Display names are
 aliased to their internal names.
 
 </td></tr>
@@ -271,7 +267,7 @@ names: `Code`, `Code - Insiders`, `VSCodium`, `Cursor`, `Windsurf`,
 
 </td><td>
 
-Resolve and generate as usual, but only **print** what the install step would
+Resolve and generate as usual, but only **print** what the installation step would
 write — no files touched.
 
 </td></tr>
@@ -347,7 +343,7 @@ python3 sync_vendor.py
 ```
 
 > [!NOTE]
-> By default the tool is looking for IDEs and config-dirs by itself.<br>
+> By default, the tool is looking for IDEs and config-dirs by itself.<br>
 > If you're using `--app` / `--config-dir` that will override discovery entirely.
 
 ---
@@ -359,23 +355,22 @@ bindings and the `k--kato.intellij-idea-keybindings` extension adds a few
 hundred more; `keybindings.generated.json` only **adds, removes or overrides**
 on top of those. It has two blocks, marked by `// ----` comments:
 
-| Block                                              | Each line                                                                                                                                                                                          |
-|----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🏗️&nbsp;&nbsp;**generated**                        | One entry per keymap action that has a VS Code command **and** sits on a different key than the VS Code / `k--kato` default for this OS. Keys the shell needs also get `"when": "!terminalFocus"`. |
-| 🎛️&nbsp;&nbsp;**curated layers&nbsp;`entries`**    | One block per layer (`overrides.jsonc`, then each `--layer`), appended **last** so they win.                                                                                                       |
+| Block                                           | Each line                                                                                                                                                                                          |
+|-------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🏗️&nbsp;&nbsp;**generated**                     | One entry per keymap action that has a VS Code command **and** sits on a different key than the VS Code / `k--kato` default for this OS. Keys the shell needs also get `"when": "!terminalFocus"`. |
+| 🎛️&nbsp;&nbsp;**curated layers&nbsp;`entries`** | One block per layer (`overrides.jsonc`, then each `--layer`), appended **last** so they win.                                                                                                       |
 
 Every run writes a `report.md` that accounts for **all** of it. The figures
-below are from the bundled sample keymap — the full output is committed as the
-**[example report](docs/example-report.md)** (`source/default.xml`, the stock `$default` keymap, 485 actions, no layers):
+below are from the bundled sample keymap — the full output is committed as the **[example report](docs/example-report.md)** (`source/default.xml`, the stock `$default` keymap, 485 actions, no layers):
 
-| `report.md` section | Sample | Meaning |
-|---|--:|---|
-| generated → emitted | **141** | actions that became a `keybindings.json` entry |
-| curated entries | **4** | entries from the curated layers, appended last |
-| already covered by the layers / extension | **24** | same key + command already shipped — skipped |
-| no VS Code command mapping | **328** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
-| mouse shortcuts | **14** | `keybindings.json` cannot express mouse bindings |
-| key could not be translated | **0** | an AWT keystroke with no VS Code token |
+| `report.md` section                       |  Sample | Meaning                                                                                                                                                                    |
+|-------------------------------------------|--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| generated → emitted                       | **141** | actions that became a `keybindings.json` entry                                                                                                                             |
+| curated entries                           |   **4** | entries from the curated layers, appended last                                                                                                                             |
+| already covered by the layers / extension |  **24** | same key + command already shipped — skipped                                                                                                                               |
+| no VS Code command mapping                | **328** | tool windows, most refactorings & navigation — left to VS Code / the extension (on macOS often on `Cmd`, not `Ctrl`; move one with `manualActionCommand`, then regenerate) |
+| mouse shortcuts                           |  **14** | `keybindings.json` cannot express mouse bindings                                                                                                                           |
+| key could not be translated               |   **0** | an AWT keystroke with no VS Code token                                                                                                                                     |
 
 `report.md` also lists key collisions: resolved by keymap order (earlier action
 wins), left unresolved (fix in a layer), or overridden on purpose.
@@ -431,14 +426,14 @@ Extended key codes (`#100XXXX`) are decoded to their character and mapped to a V
 
 ## ⚖️ Known trade-offs
 
-| Key                        | This port                                         | Layer                        | Note                                                                 |
-|----------------------------|---------------------------------------------------|------------------------------|----------------------------------------------------------------------|
-| `F7`                       | Step Into (debug) / Next Diff                     | `overrides.jsonc`            | both from the keymap; no-op outside their context                    |
-| `Ctrl + Shift + C` / `V`   | terminal: copy / paste                            | `windows-keymap`             | the editor keeps whatever the keymap puts there                      |
-| `Cmd + C` / `S` / `F` / …  | **removed** (macOS)                               | `windows-keymap`             | so only the Ctrl binding fires                                       |
-| `Alt + ←` / `→`            | word jump (not tab switching)                     | `karabiner-winkeys`          | tabs move to `Ctrl + Cmd + ←` / `→`                                  |
-| `Home` / `End`             | line start / end (not smart home)                 | `karabiner-winkeys`          | matches the Karabiner rules; also works in the agent-chat input      |
-| 🖱️ mouse shortcuts         | **not ported**                                    | –                            | `keybindings.json` has no mouse bindings — see `report.md`           |
+| Key                       | This port                         | Layer               | Note                                                            |
+|---------------------------|-----------------------------------|---------------------|-----------------------------------------------------------------|
+| `F7`                      | Step Into (debug) / Next Diff     | `overrides.jsonc`   | both from the keymap; no-op outside their context               |
+| `Ctrl + Shift + C` / `V`  | terminal: copy / paste            | `windows-keymap`    | the editor keeps whatever the keymap puts there                 |
+| `Cmd + C` / `S` / `F` / … | **removed** (macOS)               | `windows-keymap`    | so only the Ctrl binding fires                                  |
+| `Alt + ←` / `→`           | word jump (not tab switching)     | `karabiner-winkeys` | tabs move to `Ctrl + Cmd + ←` / `→`                             |
+| `Home` / `End`            | line start / end (not smart home) | `karabiner-winkeys` | matches the Karabiner rules; also works in the agent-chat input |
+| 🖱️ mouse shortcuts        | **not ported**                    | –                   | `keybindings.json` has no mouse bindings — see `report.md`      |
 
 > [!WARNING]
 > **Characters typed with Option / AltGr (macOS).** On Swiss / German layouts
@@ -456,14 +451,14 @@ Reload each editor window, then spot-check with the **editor** focused (not the
 terminal). With the bundled `$default` keymap (or any Ctrl-based one) plus
 `--layer windows-keymap`:
 
-| Shortcut                                                          | Expected                          |
-|-------------------------------------------------------------------|-----------------------------------|
-| `Ctrl + D`                                                        | duplicate line                    |
-| `Ctrl + W` · `Ctrl + Shift + W`                                   | expand · shrink selection         |
-| `Ctrl + B` · `Ctrl + Alt + B`                                     | go to definition · implementation |
-| `Ctrl + Alt + L` · `Ctrl + /`                                     | reformat · comment line           |
-| `Ctrl + Shift + A` · `Ctrl + N` / `Ctrl + Shift + N`              | Find Action · Go to Class / File  |
-| terminal: `Ctrl + C` `Ctrl + D` `Ctrl + R` `Ctrl + P`             | still hit the shell               |
+| Shortcut                                              | Expected                          |
+|-------------------------------------------------------|-----------------------------------|
+| `Ctrl + D`                                            | duplicate line                    |
+| `Ctrl + W` · `Ctrl + Shift + W`                       | expand · shrink selection         |
+| `Ctrl + B` · `Ctrl + Alt + B`                         | go to definition · implementation |
+| `Ctrl + Alt + L` · `Ctrl + /`                         | reformat · comment line           |
+| `Ctrl + Shift + A` · `Ctrl + N` / `Ctrl + Shift + N`  | Find Action · Go to Class / File  |
+| terminal: `Ctrl + C` `Ctrl + D` `Ctrl + R` `Ctrl + P` | still hit the shell               |
 
 ---
 
@@ -472,7 +467,8 @@ terminal). With the bundled `$default` keymap (or any Ctrl-based one) plus
 Contributions are welcome — bug reports, new IDE/editor coverage, better action
 mappings.
 
-- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧭</span><span>**Report a mapping gap.** Run `./port.py` and open `report.md`. If an action you use is under *"No VS Code command mapping"* but a VS Code command does exist, add the pair to `manualActionCommand` in `overrides.jsonc` and send a PR.</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧭</span><span>**Report a mapping gap.** Run `./port.py` and open `report.md`. If an action you use is under *"No VS Code command mapping"*
+  but a VS Code command does exist, add the pair to `manualActionCommand` in `overrides.jsonc` and send a PR.</span></span>
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧠</span><span>**Add a JetBrains product** → extend the `PRODUCTS` table in `resolve_keymap.py`.</span></span>
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💻</span><span>**Add an editor** → extend the `EDITORS` table in `install.py`.</span></span>
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧪</span><span>**Run the tests** before opening a PR:</span></span>
@@ -497,7 +493,8 @@ here: the project is a thin tool, and the mapping data it bundles under
 
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💡</span><span>**Inspired by** [vlad-ogol/intellij-keymap-xml-exporter](https://github.com/vlad-ogol/intellij-keymap-xml-exporter)
   — the idea of turning an IntelliJ keymap into something portable.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🗺</span><span>**Mapping data** from [kasecato/vscode-intellij-idea-keybindings](https://github.com/kasecato/vscode-intellij-idea-keybindings)
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🗺</span><span>**Mapping data**
+  from [kasecato/vscode-intellij-idea-keybindings](https://github.com/kasecato/vscode-intellij-idea-keybindings)
   (`k--kato.intellij-idea-keybindings`). Its `ActionIdCommandMapping.json` and
   `KeystrokeKeyMapping.json` do the heavy lifting of matching IntelliJ actions
   and AWT keystrokes to their VS Code equivalents — without them this would have
