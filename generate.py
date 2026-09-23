@@ -112,6 +112,31 @@ def needs_terminal_guard(key: str) -> bool:
     return bool(_TERMINAL_KEY_RE.match(key)) or key in _TERMINAL_KEYS
 
 
+# Context-only VS Code commands -> the `when` clause that confines them to their
+# context. IntelliJ scopes these actions implicitly (e.g. the lookup popup); a
+# VS Code binding without `when` is active everywhere and swallows the key even
+# where the command is a no-op - a bare `tab` on a suggest-widget command kills
+# indentation and inline (AI) completions. Context keys of the widget itself
+# only: focus keys like `textInputFocus` are unreliable across the VS Code family.
+_SUGGEST_WIDGET_WHEN = "suggestWidgetVisible && !inInlineEditsPreviewEditor && !inlineEditIsVisible"
+_COMMAND_WHEN = {
+    "acceptSelectedSuggestion": _SUGGEST_WIDGET_WHEN,
+    "acceptAlternativeSelectedSuggestion": _SUGGEST_WIDGET_WHEN,
+}
+
+
+def binding_when(command: str, key: str) -> str:
+    """`when` clause for a generated binding: the command's own context (if it
+    is context-only) plus the terminal guard for keys the shell needs. Empty
+    string means the binding applies everywhere."""
+    terms = [_COMMAND_WHEN.get(command, "")]
+    # Keys the shell / integrated terminal needs for itself (readline control
+    # chars, word motion, X11 clipboard) must never be swallowed there.
+    if needs_terminal_guard(key):
+        terms.append("!terminalFocus")
+    return " && ".join(t for t in terms if t)
+
+
 def _when_terms(expr: str) -> set[str]:
     return {t.strip() for t in (expr or "").split("&&") if t.strip()}
 
@@ -528,11 +553,9 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 emitted_pairs.add(pair)
                 entry = {"key": vkey, "command": command, "_src": src_idx}
-                # Keys the shell / integrated terminal needs for itself (readline
-                # control chars, word motion, X11 clipboard) get a guard so the
-                # editor binding never swallows them in the terminal.
-                if needs_terminal_guard(vkey):
-                    entry["when"] = "!terminalFocus"
+                when = binding_when(command, vkey)
+                if when:
+                    entry["when"] = when
                 generated.append(entry)
                 rep_mapped.append(f"{command}  <-  {vkey}  ({aid})")
 
