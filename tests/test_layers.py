@@ -96,6 +96,17 @@ class LoadOverrides(unittest.TestCase):
             generate.load_overrides(["windows-keymap", "windows-keymap"])
 
 
+class BaseMappingGaps(unittest.TestCase):
+    """Actions the vendored k--kato table does not map, filled in by the base."""
+
+    def test_new_element_opens_a_new_file(self):
+        # "New..." (Alt+Insert in $default) - without this row a shortcut the
+        # user adds to it in the IDE is silently dropped from the port.
+        ov = generate.load_overrides([])
+        self.assertEqual(ov.manual_action_command.get("NewElement"),
+                         "workbench.action.files.newUntitledFile")
+
+
 class BaseStaysNeutral(unittest.TestCase):
     """Without --layer the output carries no keymap-family or Karabiner assumptions."""
 

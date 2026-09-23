@@ -203,7 +203,7 @@ editor.action.triggerSuggest  <-  ctrl+space  (CodeCompletion)
 workbench.action.gotoLine  <-  ctrl+g  (GotoLine)
 ```
 
-## No VS Code command mapping (fell through to extension / lost)  (329)
+## No VS Code command mapping (fell through to extension / lost)  (328)
 
 ```
 $Delete  <-  DELETE
@@ -374,7 +374,6 @@ MethodOverloadSwitchUp  <-  control UP
 Move  <-  F6
 MoveElementLeft  <-  control alt shift LEFT
 MoveElementRight  <-  control alt shift RIGHT
-NewElement  <-  alt INSERT
 NewElementSamePlace  <-  control alt INSERT
 NextInlineCompletionSuggestionAction  <-  alt CLOSE_BRACKET
 NextParameter  <-  TAB
