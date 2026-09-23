@@ -11,11 +11,12 @@ than one is found; --only / --dry-run / no tty skip it).
     ./port.py --only Code --dry-run  # (install) restrict / preview
     ./port.py --skip-install         # stop after generate
     ./port.py --skip-resolve         # reuse the existing source/*.resolved.xml
+    ./port.py --layer windows-keymap # (generate) stack an override layer (repeatable)
     ./port.py --sync-vendor          # refresh vendor/kkato/ from the installed extension, then exit
 
 Each step is still runnable on its own:
     python3 resolve_keymap.py [--product ... --keymap ... --app ... --config-dir ...]
-    python3 generate.py
+    python3 generate.py      [--layer NAME|PATH ...]
     python3 install.py       [--only NAME ... --dry-run --file PATH]
     python3 sync_vendor.py
 
@@ -61,6 +62,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     g_res.add_argument("--config-dir", help="explicit <Product><version> config dir")
     g_res.add_argument("--app", help="explicit IDE install dir / .app bundle")
 
+    g_gen = ap.add_argument_group("generate step (see generate.py)")
+    g_gen.add_argument("--layer", action="append", metavar="NAME|PATH",
+                       help="stack an override layer on overrides.jsonc: layers/NAME.jsonc "
+                            "or your own .jsonc file (repeatable, applied in order)")
+
     g_ins = ap.add_argument_group("install step (see install.py)")
     g_ins.add_argument("--only", action="append", metavar="NAME",
                        help="restrict install to this editor config-folder (repeatable)")
@@ -90,6 +96,10 @@ def main(argv: list[str] | None = None) -> int:
         if val:
             resolve_argv += [flag, val]
 
+    generate_argv: list[str] = []
+    for layer in args.layer or []:
+        generate_argv += ["--layer", layer]
+
     install_argv: list[str] = []
     if args.file:
         install_argv += ["--file", args.file]
@@ -105,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.skip_resolve:
         _run("resolve", resolve_keymap.main, resolve_argv)
-    _run("generate", generate.main, [])
+    _run("generate", generate.main, generate_argv)
     if not args.skip_install:
         _run("install", install.main, install_argv)
 

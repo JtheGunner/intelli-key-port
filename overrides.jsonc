@@ -1,15 +1,12 @@
 // ============================================================================
-// Curated, hand-maintained layer for the IntelliKeyPort keymap port (IntelliJ -> VS Code).
+// Base layer for the IntelliKeyPort keymap port (IntelliJ -> VS Code).
+// Always applied; keymap- and machine-neutral. Optional layers stack on top
+// (`--layer NAME` -> layers/NAME.jsonc, or `--layer PATH` for your own file).
 //
 //   entries              -> emitted verbatim at the BOTTOM of the final array,
 //                           so they always win over the generated block and the
-//                           k--kato extension. Keep this SMALL: only the things
-//                           that must beat the PhpStorm-faithful generated
-//                           bindings - terminal-signal guards, `-cmd` removals
-//                           so stock macOS combos do not double-fire, the
-//                           handful of macOS-owned keys, and deliberate
-//                           deviations from the faithful port (comment each one,
-//                           and drop the PhpStorm action it displaces below).
+//                           k--kato extension. Keep this SMALL: only fixes every
+//                           keymap needs (e.g. two actions sharing one key).
 //   manualActionCommand  -> IntelliJ actionId -> VS Code command, for actions
 //                           missing from (or stale in) vendor/ActionIdCommandMapping.json.
 //                           generate.py picks these up automatically.
@@ -62,9 +59,6 @@
     "CompareTwoFiles",
     "Diff.ShowDiff",
 
-    // Ctrl+Y is Redo here (see `entries` below), not PhpStorm's "Delete Line".
-    "EditorDeleteLine",
-
     // Legacy aliases of CollapseAllRegions / ExpandAllRegions. PhpStorm also
     // binds these to Ctrl+- / Ctrl+= (same key as CollapseRegion / ExpandRegion),
     // so mapping them collided folding "all" onto the "region" key. The
@@ -78,124 +72,17 @@
     "NextDiff",
 
     // Diff-viewer-only; collides with Switcher (Recent Files) on Ctrl+Shift+Tab.
-    "Diff.FocusOppositePane",
-
-    // Tab switching on Alt+Left / Alt+Right (from PhpStorm NextTab/PreviousTab);
-    // re-assigned to Ctrl+Cmd+Left / Ctrl+Cmd+Right in entries below so Alt+Left/Right
-    // can be used for Windows-style word jumps.
-    "NextTab",
-    "PreviousTab",
-    "NextEditorTab",
-    "PreviousEditorTab",
-    "NextWindow",
-    "PreviousWindow"
+    "Diff.FocusOppositePane"
   ],
 
   "entries": [
-    // ---- Terminal-signal guards -------------------------------------------------
-    // The generated block binds these on Ctrl for the editor. Re-assert them here
-    // with `!terminalFocus` so the integrated terminal keeps the literal control
-    // characters (Ctrl+C interrupt, Ctrl+D EOF, Ctrl+R history, ...).
-    { "key": "ctrl+c",       "command": "editor.action.clipboardCopyAction",  "when": "!terminalFocus" },
-    { "key": "ctrl+x",       "command": "editor.action.clipboardCutAction",   "when": "!terminalFocus && !editorReadonly" },
-    { "key": "ctrl+v",       "command": "editor.action.clipboardPasteAction", "when": "!terminalFocus" },
-    { "key": "ctrl+a",       "command": "editor.action.selectAll",            "when": "!terminalFocus" },
-    { "key": "ctrl+z",       "command": "undo",                              "when": "!editorReadonly && !terminalFocus" },
-    { "key": "ctrl+shift+z", "command": "redo",                              "when": "!editorReadonly && !terminalFocus" },
-    { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "!terminalFocus" },
-    { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "!terminalFocus" },
-    { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "!editorReadonly && !terminalFocus" },
-    // Deliberate deviation from the faithful port: PhpStorm's Ctrl+Y is "Delete
-    // Line" (EditorDeleteLine, dropped in dropActions). This user wants the
-    // Windows / VS Code convention Ctrl+Y = Redo instead.
-    { "key": "ctrl+y",       "command": "redo",                              "when": "!editorReadonly && !terminalFocus" },
-    { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "!terminalFocus" },
-    { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "!terminalFocus" },
-    { "key": "ctrl+k",       "command": "git.commitAll",                     "when": "!terminalFocus && !inDebugMode" },
-    { "key": "ctrl+e",       "command": "workbench.action.openRecent",        "when": "!terminalFocus" },
-    { "key": "ctrl+u",       "command": "editor.action.goToImplementation",   "when": "!terminalFocus" },
-    { "key": "ctrl+g",       "command": "workbench.action.gotoLine",          "when": "!terminalFocus && !findWidgetVisible" },
-    { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "!terminalFocus" },
-
-    // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
-    { "key": "cmd+c",        "command": "-editor.action.clipboardCopyAction",  "when": "textInputFocus" },
-    { "key": "cmd+x",        "command": "-editor.action.clipboardCutAction",   "when": "textInputFocus" },
-    { "key": "cmd+v",        "command": "-editor.action.clipboardPasteAction", "when": "textInputFocus" },
-    { "key": "cmd+a",        "command": "-editor.action.selectAll",            "when": "textInputFocus" },
-    { "key": "cmd+z",        "command": "-undo",                              "when": "textInputFocus && !editorReadonly" },
-    { "key": "shift+cmd+z",  "command": "-redo" },
-    { "key": "cmd+f",        "command": "-actions.find" },
-    { "key": "cmd+d",        "command": "-editor.action.addSelectionToNextFindMatch", "when": "editorFocus" },
-    { "key": "cmd+shift+l",  "command": "-editor.action.selectHighlights" },
-    { "key": "cmd+shift+k",  "command": "-editor.action.deleteLines" },
-    { "key": "cmd+p",        "command": "-workbench.action.quickOpen" },
-    { "key": "shift+cmd+p",  "command": "-workbench.action.showCommands" },
-    { "key": "cmd+shift+o",  "command": "-workbench.action.gotoSymbol" },
-    { "key": "cmd+b",        "command": "-workbench.action.toggleSidebarVisibility" },
-    { "key": "cmd+j",        "command": "-workbench.action.togglePanel" },
-    { "key": "cmd+w",        "command": "-workbench.action.closeActiveEditor" },
-    { "key": "shift+cmd+t",  "command": "-workbench.action.reopenClosedEditor" },
-    { "key": "cmd+n",        "command": "-workbench.action.files.newUntitledFile" },
-    { "key": "shift+cmd+n",  "command": "-workbench.action.newWindow" },
-    { "key": "cmd+/",    "command": "-editor.action.commentLine" },
-    { "key": "cmd+,",    "command": "-workbench.action.openSettings" },
-    { "key": "cmd+g",        "command": "-editor.action.nextMatchFindAction", "when": "editorFocus" },
-    { "key": "cmd+y",        "command": "-editor.action.previewDeclaration" },
-
-    // ---- Editor essentials on Ctrl (PhpStorm-faithful, no XML entry needed) ---
-    { "key": "ctrl+s",       "command": "workbench.action.files.save" },
-    { "key": "cmd+s",        "command": "-workbench.action.files.save" },
-    { "key": "ctrl+f",       "command": "actions.find", "when": "editorFocus || editorIsOpen" },
-    { "key": "ctrl+/",       "command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
-    { "key": "ctrl+numpad_divide","command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
-    { "key": "ctrl+,",   "command": "workbench.action.openSettings" },
-    { "key": "ctrl+alt+s",   "command": "-workbench.action.openSettings" },
+    // F2 / Shift+F2 are Next / Previous Highlighted Error in every IntelliJ keymap.
     { "key": "f2",           "command": "editor.action.marker.next", "when": "editorFocus" },
     { "key": "shift+f2",     "command": "editor.action.marker.prev", "when": "editorFocus" },
 
-    // F7 is Step Into (debugging) and Next Difference (diff viewer) in PhpStorm.
+    // F7 is Step Into (debugging) and Next Difference (diff viewer) in IntelliJ.
     // StepInto / NextDiff are dropped above; re-assert both, split by context.
     { "key": "f7",           "command": "workbench.action.debug.stepInto",           "when": "inDebugMode" },
-    { "key": "f7",           "command": "workbench.action.compareEditor.nextChange", "when": "!inDebugMode && !terminalFocus" },
-
-    // ---- Terminal: keep control chars in the shell; add only the safe verbs ---
-    { "key": "ctrl+shift+c", "command": "workbench.action.terminal.copySelection", "when": "terminalFocus && terminalHasBeenCreated && terminalTextSelected" },
-    { "key": "ctrl+shift+v", "command": "workbench.action.terminal.paste", "when": "terminalFocus && terminalHasBeenCreated" },
-    { "key": "shift+enter",  "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u001b\r" }, "when": "terminalFocus" },
-
-    // ---- Zoom (numpad, matches PhpStorm) -------------------------------------
-    { "key": "ctrl+numpad_add",       "command": "workbench.action.zoomIn" },
-    { "key": "ctrl+shift+numpad_add", "command": "workbench.action.zoomIn" },
-    { "key": "ctrl+numpad_subtract",  "command": "workbench.action.zoomOut" },
-    { "key": "ctrl+numpad0",          "command": "workbench.action.zoomReset" },
-
-    // ---- Windows Navigation Keys (Word & Line/Document Navigation) -----------
-    // In AGY IDE / VS Code on macOS with Karabiner [winkeys]:
-    // Ctrl+Left/Right is translated to Alt+Left/Right by Karabiner for all apps (including AGY IDE),
-    // allowing native word jump in web/input text boxes.
-    // In the Monaco editor, Alt+Left/Right drives cursorWordLeft/Right.
-    // Guard is `!terminalFocus` only (no editorTextFocus): these are pure
-    // cursor/selection moves, and dropping the editor guard lets them fire in
-    // the agent-chat input widget too, not just the code editor.
-    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus" },
-    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus" },
-    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus" },
-    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus" },
-
-    // Home / End / Ctrl+Home / Ctrl+End line and document navigation
-    { "key": "home",            "command": "cursorLineStart",         "when": "!terminalFocus" },
-    { "key": "shift+home",      "command": "cursorLineStartSelect",   "when": "!terminalFocus" },
-    { "key": "end",             "command": "cursorLineEnd",           "when": "!terminalFocus" },
-    { "key": "shift+end",       "command": "cursorLineEndSelect",     "when": "!terminalFocus" },
-    { "key": "ctrl+home",       "command": "cursorTop",               "when": "!terminalFocus" },
-    { "key": "ctrl+shift+home", "command": "cursorTopSelect",         "when": "!terminalFocus" },
-    { "key": "ctrl+end",        "command": "cursorBottom",            "when": "!terminalFocus" },
-    { "key": "ctrl+shift+end",  "command": "cursorBottomSelect",      "when": "!terminalFocus" },
-
-    // ---- Tab Navigation (moved to Ctrl+Cmd+Left/Right to avoid clash with word jump) ---
-    { "key": "ctrl+cmd+left",        "command": "workbench.action.previousEditor", "when": "!terminalFocus" },
-    { "key": "ctrl+cmd+right",       "command": "workbench.action.nextEditor",     "when": "!terminalFocus" },
-    { "key": "ctrl+cmd+shift+left",  "command": "workbench.action.previousEditor" },
-    { "key": "ctrl+cmd+shift+right", "command": "workbench.action.nextEditor" }
+    { "key": "f7",           "command": "workbench.action.compareEditor.nextChange", "when": "!inDebugMode && !terminalFocus" }
   ]
 }

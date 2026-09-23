@@ -1,0 +1,72 @@
+// ============================================================================
+// Layer `windows-keymap`  (opt-in:  ./port.py --layer windows-keymap)
+//
+// For a Ctrl-based JetBrains keymap ($default / "Default for XWin" / KDE /
+// GNOME and anything derived from them). The generated block already binds
+// these keys; this layer adds the pieces a Ctrl keymap needs around it:
+//   - the integrated terminal keeps its control characters (Ctrl+C, Ctrl+D, ...)
+//   - macOS: the stock VS Code Cmd shortcuts are removed so they do not fire
+//     alongside the Ctrl ones (the removals are no-ops on Windows / Linux).
+//
+// Do not use it with a macOS (Cmd-based) keymap: it would take Cmd+C, Cmd+S, ...
+// away and put editor commands on Ctrl+D, Ctrl+W, ...
+// ============================================================================
+{
+  "entries": [
+    // ---- Terminal-signal guards -------------------------------------------------
+    // The generated block binds these on Ctrl for the editor. Re-assert them here
+    // with `!terminalFocus` so the integrated terminal keeps the literal control
+    // characters (Ctrl+C interrupt, Ctrl+D EOF, Ctrl+R history, ...).
+    { "key": "ctrl+c",       "command": "editor.action.clipboardCopyAction",  "when": "!terminalFocus" },
+    { "key": "ctrl+x",       "command": "editor.action.clipboardCutAction",   "when": "!terminalFocus && !editorReadonly" },
+    { "key": "ctrl+v",       "command": "editor.action.clipboardPasteAction", "when": "!terminalFocus" },
+    { "key": "ctrl+a",       "command": "editor.action.selectAll",            "when": "!terminalFocus" },
+    { "key": "ctrl+z",       "command": "undo",                              "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+shift+z", "command": "redo",                              "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+w",       "command": "editor.action.smartSelect.grow",     "when": "!terminalFocus" },
+    { "key": "ctrl+shift+w", "command": "editor.action.smartSelect.shrink",   "when": "!terminalFocus" },
+    { "key": "ctrl+d",       "command": "editor.action.copyLinesDownAction",  "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+r",       "command": "editor.action.startFindReplaceAction","when": "!terminalFocus" },
+    { "key": "ctrl+l",       "command": "editor.action.nextMatchFindAction",  "when": "!terminalFocus" },
+    { "key": "ctrl+k",       "command": "git.commitAll",                     "when": "!terminalFocus && !inDebugMode" },
+    { "key": "ctrl+e",       "command": "workbench.action.openRecent",        "when": "!terminalFocus" },
+    { "key": "ctrl+u",       "command": "editor.action.goToImplementation",   "when": "!terminalFocus" },
+    { "key": "ctrl+g",       "command": "workbench.action.gotoLine",          "when": "!terminalFocus && !findWidgetVisible" },
+    { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "!terminalFocus" },
+
+    // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
+    { "key": "cmd+c",        "command": "-editor.action.clipboardCopyAction",  "when": "textInputFocus" },
+    { "key": "cmd+x",        "command": "-editor.action.clipboardCutAction",   "when": "textInputFocus" },
+    { "key": "cmd+v",        "command": "-editor.action.clipboardPasteAction", "when": "textInputFocus" },
+    { "key": "cmd+a",        "command": "-editor.action.selectAll",            "when": "textInputFocus" },
+    { "key": "cmd+z",        "command": "-undo",                              "when": "textInputFocus && !editorReadonly" },
+    { "key": "shift+cmd+z",  "command": "-redo" },
+    { "key": "cmd+f",        "command": "-actions.find" },
+    { "key": "cmd+d",        "command": "-editor.action.addSelectionToNextFindMatch", "when": "editorFocus" },
+    { "key": "cmd+shift+l",  "command": "-editor.action.selectHighlights" },
+    { "key": "cmd+shift+k",  "command": "-editor.action.deleteLines" },
+    { "key": "cmd+p",        "command": "-workbench.action.quickOpen" },
+    { "key": "shift+cmd+p",  "command": "-workbench.action.showCommands" },
+    { "key": "cmd+shift+o",  "command": "-workbench.action.gotoSymbol" },
+    { "key": "cmd+b",        "command": "-workbench.action.toggleSidebarVisibility" },
+    { "key": "cmd+j",        "command": "-workbench.action.togglePanel" },
+    { "key": "cmd+w",        "command": "-workbench.action.closeActiveEditor" },
+    { "key": "shift+cmd+t",  "command": "-workbench.action.reopenClosedEditor" },
+    { "key": "cmd+n",        "command": "-workbench.action.files.newUntitledFile" },
+    { "key": "shift+cmd+n",  "command": "-workbench.action.newWindow" },
+    { "key": "cmd+/",        "command": "-editor.action.commentLine" },
+    { "key": "cmd+,",        "command": "-workbench.action.openSettings" },
+    { "key": "cmd+g",        "command": "-editor.action.nextMatchFindAction", "when": "editorFocus" },
+    { "key": "cmd+y",        "command": "-editor.action.previewDeclaration" },
+    { "key": "cmd+s",        "command": "-workbench.action.files.save" },
+
+    // ---- Editor essentials on Ctrl ---------------------------------------------
+    { "key": "ctrl+f",       "command": "actions.find", "when": "editorFocus || editorIsOpen" },
+    { "key": "ctrl+/",       "command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
+    { "key": "ctrl+numpad_divide","command": "editor.action.commentLine", "when": "!editorReadonly && !terminalFocus" },
+
+    // ---- Terminal: keep control chars in the shell; add only the safe verbs ---
+    { "key": "ctrl+shift+c", "command": "workbench.action.terminal.copySelection", "when": "terminalFocus && terminalHasBeenCreated && terminalTextSelected" },
+    { "key": "ctrl+shift+v", "command": "workbench.action.terminal.paste", "when": "terminalFocus && terminalHasBeenCreated" }
+  ]
+}
