@@ -1,4 +1,4 @@
-<div style="text-align: center;">
+<div align="center">
 
 # ⌨️ IntelliKeyPort
 
@@ -500,6 +500,6 @@ here: the project is a thin tool, and the mapping data it bundles under
   and AWT keystrokes to their VS Code equivalents — without them this would have
   been a slog.</span></span>
 
-<div style="text-align: center;">
+<div align="center">
 <sub>Built for people who switch editors more often than they switch keymaps.</sub>
 </div>
