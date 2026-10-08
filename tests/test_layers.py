@@ -128,6 +128,26 @@ class KarabinerWinkeysLayer(unittest.TestCase):
             self.assertIn("!terminalFocus", e["when"])
 
 
+    def test_cmd_shift_z_redoes_outside_the_agent_panel(self):
+        # Karabiner sends Cmd+Shift+Z for Ctrl+Shift+Z / Ctrl+Y; the stock
+        # binding is removed by windows-keymap, so the layer must restore it.
+        entries = generate.load_overrides(["windows-keymap", "karabiner-winkeys"]).entries
+        redo = [e for e in entries if e["key"] == "cmd+shift+z" and e["command"] == "redo"]
+        self.assertEqual(len(redo), 1)
+        self.assertIn("!antigravity.agentSidePanel.isFocused", redo[0]["when"])
+        self.assertIn("!terminalFocus", redo[0]["when"])
+
+    def test_terminal_gets_control_characters_back(self):
+        entries = generate.load_overrides(["karabiner-winkeys"]).entries
+        sent = {e["key"]: e["args"]["text"] for e in entries
+                if e["command"] == "workbench.action.terminal.sendSequence"}
+        self.assertEqual(sent, {"cmd+a": "\u0001", "ctrl+insert": "\u0003",
+                                "cmd+z": "\u001a", "cmd+shift+z": "\u0019"})
+        for e in entries:
+            if e["command"] == "workbench.action.terminal.sendSequence":
+                self.assertEqual(e["when"], "terminalFocus")
+
+
 class BaseStaysNeutral(unittest.TestCase):
     """Without --layer the output carries no keymap-family or Karabiner assumptions."""
 
