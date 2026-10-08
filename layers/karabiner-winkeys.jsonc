@@ -28,12 +28,15 @@
   "entries": [
     // ---- Word jump -----------------------------------------------------------
     // Guard is `!terminalFocus` only (no editorTextFocus): these are pure
-    // cursor/selection moves, and dropping the editor guard lets them fire in
-    // the agent-chat input widget too, not just the code editor.
-    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus" },
-    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus" },
-    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus" },
-    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus" },
+    // cursor/selection moves, so they fire in any editor-like input.
+    // Exception: the Antigravity agent panel. Its chat input is not Monaco, so
+    // the editor command is consumed there and jumps to the start of the text
+    // instead of by word. Excluding the panel lets the native Option+Arrow
+    // handling run. The context key is undefined (falsy) in other editors.
+    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
 
     // ---- Home / End / Ctrl+Home / Ctrl+End line and document navigation -----
     { "key": "home",            "command": "cursorLineStart",         "when": "!terminalFocus" },

@@ -116,6 +116,18 @@ class WindowsKeymapLayer(unittest.TestCase):
         self.assertNotIn(("cmd+v", "-editor.action.clipboardPasteAction"), removed)
 
 
+class KarabinerWinkeysLayer(unittest.TestCase):
+    def test_word_jump_leaves_the_antigravity_agent_panel_alone(self):
+        # The agent chat input is not Monaco: the editor command is consumed
+        # there and jumps to the text start instead of by word.
+        entries = generate.load_overrides(["karabiner-winkeys"]).entries
+        word_jumps = [e for e in entries if e["command"].startswith("cursorWord")]
+        self.assertEqual(len(word_jumps), 4)
+        for e in word_jumps:
+            self.assertIn("!antigravity.agentSidePanel.isFocused", e["when"])
+            self.assertIn("!terminalFocus", e["when"])
+
+
 class BaseStaysNeutral(unittest.TestCase):
     """Without --layer the output carries no keymap-family or Karabiner assumptions."""
 
