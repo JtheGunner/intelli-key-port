@@ -9,6 +9,10 @@
 //   - Alt+Left/Right is word jump, so IntelliJ's Alt+Left/Right tab switching
 //     moves to Ctrl+Cmd+Left/Right
 //   - Home/End go to line start / end, Ctrl+Home/End to document start / end
+//   - Ctrl+A / C / Z / Y reach the Antigravity agent chat as Cmd+A / Ctrl+Insert
+//     / Cmd+Z / Cmd+Shift+Z (the chat swallows or misroutes the originals), so
+//     in the terminal they are turned back into the control characters
+//     ^A / ^C / ^Z / ^Y
 //
 // Without those Karabiner rules you do not need this layer.
 // ============================================================================
@@ -28,12 +32,15 @@
   "entries": [
     // ---- Word jump -----------------------------------------------------------
     // Guard is `!terminalFocus` only (no editorTextFocus): these are pure
-    // cursor/selection moves, and dropping the editor guard lets them fire in
-    // the agent-chat input widget too, not just the code editor.
-    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus" },
-    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus" },
-    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus" },
-    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus" },
+    // cursor/selection moves, so they fire in any editor-like input.
+    // Exception: the Antigravity agent panel. Its chat input is not Monaco, so
+    // the editor command is consumed there and jumps to the start of the text
+    // instead of by word. Excluding the panel lets the native Option+Arrow
+    // handling run. The context key is undefined (falsy) in other editors.
+    { "key": "alt+left",        "command": "cursorWordLeft",          "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+shift+left",  "command": "cursorWordLeftSelect",    "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+right",       "command": "cursorWordRight",         "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
+    { "key": "alt+shift+right", "command": "cursorWordRightSelect",   "when": "!terminalFocus && !antigravity.agentSidePanel.isFocused" },
 
     // ---- Home / End / Ctrl+Home / Ctrl+End line and document navigation -----
     { "key": "home",            "command": "cursorLineStart",         "when": "!terminalFocus" },
@@ -49,6 +56,23 @@
     { "key": "ctrl+cmd+left",        "command": "workbench.action.previousEditor", "when": "!terminalFocus" },
     { "key": "ctrl+cmd+right",       "command": "workbench.action.nextEditor",     "when": "!terminalFocus" },
     { "key": "ctrl+cmd+shift+left",  "command": "workbench.action.previousEditor" },
-    { "key": "ctrl+cmd+shift+right", "command": "workbench.action.nextEditor" }
+    { "key": "ctrl+cmd+shift+right", "command": "workbench.action.nextEditor" },
+
+    // ---- Redo -----------------------------------------------------------------
+    // Karabiner sends Cmd+Shift+Z for Ctrl+Shift+Z / Ctrl+Y. The windows-keymap
+    // layer removes the stock Cmd+Shift+Z binding, so bind it again - except in
+    // the agent panel, where the native redo works and `redo` would jump to the
+    // editor.
+    { "key": "cmd+shift+z", "command": "redo", "when": "!editorReadonly && !terminalFocus && !antigravity.agentSidePanel.isFocused" },
+
+    // ---- Terminal: undo the Karabiner Ctrl+A / Ctrl+C translation -----------
+    // Karabiner cannot tell the terminal from the agent chat, so it sends
+    // Cmd+A / Ctrl+Insert / Cmd+Z / Cmd+Shift+Z for Ctrl+A / C / Z / Y. In the
+    // terminal they must reach the shell as ^A (line start, tmux prefix), ^C
+    // (SIGINT), ^Z (suspend) and ^Y (yank) again. Ctrl+Shift+C still copies a terminal selection.
+    { "key": "cmd+a",       "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u0001" }, "when": "terminalFocus" },
+    { "key": "ctrl+insert", "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u0003" }, "when": "terminalFocus" },
+    { "key": "cmd+z",       "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u001a" }, "when": "terminalFocus" },
+    { "key": "cmd+shift+z", "command": "workbench.action.terminal.sendSequence", "args": { "text": "\u0019" }, "when": "terminalFocus" }
   ]
 }

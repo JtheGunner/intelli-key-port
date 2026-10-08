@@ -149,7 +149,7 @@ the handful of decisions a machine cannot make for you.
 |-----------------------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 🧱&nbsp;&nbsp;`overrides.jsonc`               | always                       | Keymap- and machine-neutral fixes: extra action mappings, noise drops, `F7` split between Step Into and Next Difference, `F2` next error.                                                               |
 | 🪟&nbsp;&nbsp;`layers/windows-keymap.jsonc`   | `--layer windows-keymap`     | For a **Ctrl-based** keymap (`$default`, *Default for XWin*, KDE, GNOME): the terminal keeps `Ctrl + C` / `D` / `R`, and on macOS the stock `Cmd` shortcuts are removed so they don't fire as well.     |
-| ⌨️&nbsp;&nbsp;`layers/karabiner-winkeys.jsonc` | `--layer karabiner-winkeys`  | Companion to the [Karabiner `[winkeys]` rules](https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos): `Alt + ←/→` word jump, `Home`/`End`, tab switching moved to `Ctrl + Cmd + ←/→`. |
+| ⌨️&nbsp;&nbsp;`layers/karabiner-winkeys.jsonc` | `--layer karabiner-winkeys`  | Companion to the [Karabiner `[winkeys]` rules](https://github.com/JtheGunner/karabiner-windows-keyboard-mapping-macos): `Alt + ←/→` word jump, `Home`/`End`, tab switching moved to `Ctrl + Cmd + ←/→`, `Cmd + Shift + Z` redo, terminal `^A`/`^C`/`^Z`/`^Y` for the translated Ctrl keys. |
 | 👤&nbsp;&nbsp;*your own file*                 | `--layer path/to/mine.jsonc` | Personal choices (e.g. `Ctrl + Y` = redo). Keep it next to your dotfiles, not in this repo.                                                                                                             |
 
 Layers stack in order: `overrides.jsonc`, then each `--layer` in the order
@@ -433,6 +433,7 @@ Extended key codes (`#100XXXX`) are decoded to their character and mapped to a V
 | `Cmd + C` / `S` / `F` / … | **removed** (macOS)               | `windows-keymap`    | so only the Ctrl binding fires                                  |
 | `Alt + ←` / `→`           | word jump (not tab switching)     | `karabiner-winkeys` | tabs move to `Ctrl + Cmd + ←` / `→`                             |
 | `Home` / `End`            | line start / end (not smart home) | `karabiner-winkeys` | matches the Karabiner rules; also works in the agent-chat input |
+| `Cmd + Shift + Z`         | redo (not in the Antigravity agent panel) | `karabiner-winkeys` | Karabiner sends it for `Ctrl + Y`; the agent chat redoes natively |
 | 🖱️ mouse shortcuts        | **not ported**                    | –                   | `keybindings.json` has no mouse bindings — see `report.md`      |
 
 > [!WARNING]
