@@ -5,7 +5,7 @@
 // GNOME and anything derived from them). The generated block already binds
 // these keys; this layer adds the pieces a Ctrl keymap needs around it:
 //   - the integrated terminal keeps its control characters (Ctrl+C, Ctrl+D, ...)
-//   - macOS: the stock VS Code Cmd shortcuts are removed so they do not fire
+//   - macOS: the stock VS Code Cmd shortcuts (except Cmd+V) are removed so they do not fire
 //     alongside the Ctrl ones (the removals are no-ops on Windows / Linux).
 //
 // Do not use it with a macOS (Cmd-based) keymap: it would take Cmd+C, Cmd+S, ...
@@ -35,9 +35,10 @@
     { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "!terminalFocus" },
 
     // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
+    // Cmd+V stays bound on purpose: removing it breaks paste in non-editor inputs
+    // (e.g. the Antigravity agent chat), Ctrl+V included.
     { "key": "cmd+c",        "command": "-editor.action.clipboardCopyAction",  "when": "textInputFocus" },
     { "key": "cmd+x",        "command": "-editor.action.clipboardCutAction",   "when": "textInputFocus" },
-    { "key": "cmd+v",        "command": "-editor.action.clipboardPasteAction", "when": "textInputFocus" },
     { "key": "cmd+a",        "command": "-editor.action.selectAll",            "when": "textInputFocus" },
     { "key": "cmd+z",        "command": "-undo",                              "when": "textInputFocus && !editorReadonly" },
     { "key": "shift+cmd+z",  "command": "-redo" },

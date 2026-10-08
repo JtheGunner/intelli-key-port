@@ -107,6 +107,15 @@ class BaseMappingGaps(unittest.TestCase):
                          "workbench.action.files.newUntitledFile")
 
 
+class WindowsKeymapLayer(unittest.TestCase):
+    def test_native_cmd_v_paste_stays_bound(self):
+        # Removing the stock Cmd+V binding breaks paste in non-editor inputs
+        # (the Antigravity agent chat) even for Ctrl+V.
+        entries = generate.load_overrides(["windows-keymap"]).entries
+        removed = {(e["key"], e["command"]) for e in entries}
+        self.assertNotIn(("cmd+v", "-editor.action.clipboardPasteAction"), removed)
+
+
 class BaseStaysNeutral(unittest.TestCase):
     """Without --layer the output carries no keymap-family or Karabiner assumptions."""
 
