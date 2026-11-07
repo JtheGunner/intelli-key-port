@@ -12,6 +12,7 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import zipfile
 from pathlib import Path
 
@@ -113,6 +114,65 @@ class DiscoverInstalls(unittest.TestCase):
             j.unlink()
         self._patch_roots(root)
         self.assertEqual(rk.discover_installs("PhpStorm"), [])
+
+
+class AndroidStudio(unittest.TestCase):
+    """Android Studio: product-info name differs and config lives under Google/."""
+
+    def _fake_install(self, root: Path) -> None:
+        home = root / "Android Studio.app" / "Contents"
+        (home / "Resources").mkdir(parents=True)
+        (home / "Resources" / "product-info.json").write_text(json.dumps({
+            "name": "Android Studio", "version": "AI-262.1",
+            "dataDirectoryName": "AndroidStudio2026.2.2",
+        }))
+        (home / "lib").mkdir()
+        (home / "lib" / "app.jar").touch()
+        (home / "plugins").mkdir()
+
+    def _mac_home(self, home: Path) -> None:
+        for target, value in (("IS_MAC", True), ("IS_WIN", False)):
+            p = unittest.mock.patch.object(rk, target, value)
+            p.start()
+            self.addCleanup(p.stop)
+        p = unittest.mock.patch.object(Path, "home", return_value=home)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_product_is_known(self):
+        self.assertEqual(rk.PRODUCTS["AndroidStudio"], ("Android Studio",))
+
+    def test_discover_installs_finds_android_studio(self):
+        if not rk.IS_MAC:
+            self.skipTest("fake .app bundle layout is macOS-only")
+        root = _tmpdir(self)
+        self._fake_install(root)
+        self.addCleanup(setattr, rk, "install_search_roots", rk.install_search_roots)
+        rk.install_search_roots = lambda: [root]
+        installs = rk.discover_installs("AndroidStudio")
+        self.assertEqual(len(installs), 1, installs)
+        self.assertEqual(installs[0][4], "AndroidStudio2026.2.2")
+
+    def test_config_dir_found_under_google_home(self):
+        home = _tmpdir(self)
+        cfg = home / "Library" / "Application Support" / "Google" / "AndroidStudio2026.2.2"
+        (cfg / "keymaps").mkdir(parents=True)
+        self._mac_home(home)
+        self.assertEqual(
+            rk.resolve_config_dir("AndroidStudio", None, "AndroidStudio2026.2.2"), cfg)
+        self.assertEqual(rk.resolve_config_dir("AndroidStudio", None, ""), cfg)
+
+    def test_google_home_listed_only_when_present(self):
+        home = _tmpdir(self)
+        self._mac_home(home)
+        self.assertEqual(rk.jetbrains_config_homes(), [])
+        google = home / "Library" / "Application Support" / "Google"
+        google.mkdir(parents=True)
+        self.assertEqual(rk.jetbrains_config_homes(), [google])
+
+    def test_config_dir_prefixes_cover_known_products(self):
+        for prefix in ("PhpStorm", "AndroidStudio", "IntelliJIdea", "GoLand", "DataGrip"):
+            self.assertIn(prefix, rk.CONFIG_DIR_PREFIXES)
 
 
 class KeymapSourceJarLayout(unittest.TestCase):

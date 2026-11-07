@@ -66,7 +66,15 @@ PRODUCTS = {
     "CLion": ("CLion",),
     "Rider": ("Rider",),
     "RustRover": ("RustRover",),
+    "AndroidStudio": ("Android Studio",),
 }
+
+# Config-dir name prefixes (<Prefix><version>) of every known IDE, matched
+# case-insensitively when listing install targets.
+CONFIG_DIR_PREFIXES = (
+    "PhpStorm", "IntelliJIdea", "IdeaIC", "WebStorm", "PyCharm", "DataGrip",
+    "GoLand", "RubyMine", "CLion", "Rider", "RustRover", "AndroidStudio",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -76,14 +84,16 @@ def jetbrains_config_homes() -> list[Path]:
     """Every place a JetBrains IDE keeps its <Product><version> config dir."""
     home = Path.home()
     out: list[Path] = []
+    # Android Studio keeps its config under the vendor folder "Google".
     if IS_MAC:
-        out.append(home / "Library" / "Application Support" / "JetBrains")
+        base = home / "Library" / "Application Support"
+        out += [base / "JetBrains", base / "Google"]
     elif IS_WIN:
-        base = os.environ.get("APPDATA") or (home / "AppData" / "Roaming")
-        out.append(Path(base) / "JetBrains")
+        base = Path(os.environ.get("APPDATA") or (home / "AppData" / "Roaming"))
+        out += [base / "JetBrains", base / "Google"]
     else:
-        base = os.environ.get("XDG_CONFIG_HOME") or (home / ".config")
-        out.append(Path(base) / "JetBrains")
+        base = Path(os.environ.get("XDG_CONFIG_HOME") or (home / ".config"))
+        out += [base / "JetBrains", base / "Google"]
         # Flatpak IDEs write config into their sandbox, not ~/.config
         for var in sorted(Path(home / ".var" / "app").glob("*")):
             out += [var / "config" / "JetBrains", var / "data" / "JetBrains"]
@@ -111,6 +121,7 @@ def install_search_roots() -> list[Path]:
             home / ".local" / "share" / "JetBrains",
             home / ".local" / "share" / "JetBrains" / "Toolbox" / "apps",
             home / ".local" / "share" / "applications",
+            Path("/opt/android-studio"), home / "android-studio",
             # Flatpak install trees (system + per-user)
             Path("/var/lib/flatpak/app"),
             home / ".local" / "share" / "flatpak" / "app",
