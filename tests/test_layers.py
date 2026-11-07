@@ -107,6 +107,25 @@ class BaseMappingGaps(unittest.TestCase):
                          "workbench.action.files.newUntitledFile")
 
 
+class SaveShortcut(unittest.TestCase):
+    """The save key saves the active file, never every open file."""
+
+    def test_save_all_is_never_ported(self):
+        # JetBrains binds SaveAll to Ctrl+S (Cmd+S on macOS keymaps); mapping it
+        # makes the save key write every open file in VS Code.
+        self.assertIn("SaveAll", generate.load_overrides([]).drop_actions)
+
+    def test_windows_layer_binds_ctrl_s_to_save_active_file(self):
+        entries = generate.load_overrides(["windows-keymap"]).entries
+        bound = [e for e in entries if e["key"] == "ctrl+s" and not e["command"].startswith("-")]
+        self.assertEqual([e["command"] for e in bound], ["workbench.action.files.save"])
+        self.assertEqual(bound[0].get("when"), "!terminalFocus")
+
+    def test_no_curated_layer_binds_save_all(self):
+        entries = generate.load_overrides(["windows-keymap", "karabiner-winkeys"]).entries
+        self.assertNotIn("workbench.action.files.saveAll", {e["command"] for e in entries})
+
+
 class WindowsKeymapLayer(unittest.TestCase):
     def test_native_cmd_v_paste_stays_bound(self):
         # Removing the stock Cmd+V binding breaks paste in non-editor inputs
