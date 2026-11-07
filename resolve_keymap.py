@@ -271,6 +271,17 @@ def read_active_keymap(config_dir: Path) -> str | None:
 # --------------------------------------------------------------------------- #
 # keymap sources + resolution
 # --------------------------------------------------------------------------- #
+def _has_keymap_entries(jar: Path) -> bool:
+    """True if `jar` is a readable zip containing `keymaps/*.xml` entries."""
+    if not jar.is_file():
+        return False
+    try:
+        with zipfile.ZipFile(jar) as z:
+            return any(re.fullmatch(r"keymaps/.+\.xml", n) for n in z.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return False
+
+
 class KeymapSource:
     """Keymap XML text by name, from the config dir or the IDE's jars."""
 
@@ -279,16 +290,15 @@ class KeymapSource:
         # Built-in keymaps: lib/app.jar (pre-2025.3) or, since the platform
         # split, lib/intellij.platform.ide.impl.jar. Fall back to scanning
         # every lib jar for a keymaps/ entry if neither is where we expect.
-        jars = [lib_dir / n for n in CORE_JARS if (lib_dir / n).is_file()]
+        # The core jar can exist without holding keymaps/ (2026.3 moved them to
+        # intellij.platform.resources.jar), so only trust it if it has some.
+        jars = [lib_dir / n for n in CORE_JARS
+                if _has_keymap_entries(lib_dir / n)]
         if not jars and lib_dir.is_dir():
             for jar in sorted(lib_dir.glob("*.jar")):
-                try:
-                    with zipfile.ZipFile(jar) as z:
-                        if any(re.fullmatch(r"keymaps/.+\.xml", n) for n in z.namelist()):
-                            jars.append(jar)
-                            break
-                except (zipfile.BadZipFile, OSError):
-                    continue
+                if _has_keymap_entries(jar):
+                    jars.append(jar)
+                    break
         if plugins_dir.is_dir():
             jars += sorted(plugins_dir.glob("keymap-*/lib/*.jar"))
         # index built-in keymaps by BOTH the file stem and the <keymap name="">
