@@ -62,6 +62,25 @@ class SelectTargets(unittest.TestCase):
         self._force_tty()
         self.assertEqual(install.select_targets(FAKE, _args()), [FAKE[0], FAKE[2]])
 
+    def test_default_used_for_non_tty(self):
+        self.assertEqual(install.select_targets(FAKE, _args(), default=FAKE[:1]), FAKE[:1])
+
+    def test_default_used_for_single_target(self):
+        self.assertEqual(install.select_targets(FAKE[1:2], _args(), default=[]), [])
+
+    def test_default_used_when_prompt_unavailable(self):
+        self._patch_choose(lambda *a, **k: (_ for _ in ()).throw(prompt_select.PromptUnavailable()))
+        self._force_tty()
+        self.assertEqual(install.select_targets(FAKE, _args(), default=FAKE[:1]), FAKE[:1])
+
+    def test_only_ignores_default(self):
+        self.assertEqual(install.select_targets(FAKE, _args(only=["Code"]), default=[]), FAKE)
+
+    def test_picker_ignores_default(self):
+        self._patch_choose(lambda *a, **k: [1])
+        self._force_tty()
+        self.assertEqual(install.select_targets(FAKE, _args(), default=FAKE[:1]), [FAKE[1]])
+
     # -- helpers -----------------------------------------------------------
     def _patch_choose(self, fn):
         real = install.choose
@@ -112,9 +131,12 @@ class MainRegression(unittest.TestCase):
     def test_dry_run_lists_all_without_prompting(self):
         real_discover = install.discover_targets
         real_choose = install.choose
+        real_discover_jb = install.discover_jetbrains_targets
         install.discover_targets = lambda wanted: FAKE
+        install.discover_jetbrains_targets = lambda: []  # stay off the real machine
         install.choose = lambda *a, **k: self.fail("choose() must not run on --dry-run")
         self.addCleanup(lambda: setattr(install, "discover_targets", real_discover))
+        self.addCleanup(lambda: setattr(install, "discover_jetbrains_targets", real_discover_jb))
         self.addCleanup(lambda: setattr(install, "choose", real_choose))
 
         src = Path(__file__).resolve().parent.parent / "prompt_select.py"  # any real file
