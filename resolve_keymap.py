@@ -53,6 +53,9 @@ OUT_DIR = ROOT / "source"
 IS_MAC = platform.system() == "Darwin"
 IS_WIN = platform.system() == "Windows"
 
+# Path of the *.resolved.xml written by the latest main() call (read by port.py).
+last_output: Path | None = None
+
 # `--product` value -> substrings that identify the install (product-info.json
 # "name") and the config-dir prefix (dataDirectoryName / folder name).
 PRODUCTS = {
@@ -66,7 +69,16 @@ PRODUCTS = {
     "CLion": ("CLion",),
     "Rider": ("Rider",),
     "RustRover": ("RustRover",),
+    "AndroidStudio": ("Android Studio",),
 }
+
+# Config-dir name prefixes (<Prefix><version>) of every known IDE, matched
+# case-insensitively when listing install targets.
+CONFIG_DIR_PREFIXES = (
+    "PhpStorm", "IntelliJIdea", "IdeaIC", "WebStorm", "PyCharm", "DataGrip",
+    "GoLand", "RubyMine", "CLion", "Rider", "RustRover", "AndroidStudio",
+    "PyCharmCE", "AndroidStudioPreview", "DataSpell", "Aqua",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -76,14 +88,16 @@ def jetbrains_config_homes() -> list[Path]:
     """Every place a JetBrains IDE keeps its <Product><version> config dir."""
     home = Path.home()
     out: list[Path] = []
+    # Android Studio keeps its config under the vendor folder "Google".
     if IS_MAC:
-        out.append(home / "Library" / "Application Support" / "JetBrains")
+        base = home / "Library" / "Application Support"
+        out += [base / "JetBrains", base / "Google"]
     elif IS_WIN:
-        base = os.environ.get("APPDATA") or (home / "AppData" / "Roaming")
-        out.append(Path(base) / "JetBrains")
+        base = Path(os.environ.get("APPDATA") or (home / "AppData" / "Roaming"))
+        out += [base / "JetBrains", base / "Google"]
     else:
-        base = os.environ.get("XDG_CONFIG_HOME") or (home / ".config")
-        out.append(Path(base) / "JetBrains")
+        base = Path(os.environ.get("XDG_CONFIG_HOME") or (home / ".config"))
+        out += [base / "JetBrains", base / "Google"]
         # Flatpak IDEs write config into their sandbox, not ~/.config
         for var in sorted(Path(home / ".var" / "app").glob("*")):
             out += [var / "config" / "JetBrains", var / "data" / "JetBrains"]
@@ -111,6 +125,7 @@ def install_search_roots() -> list[Path]:
             home / ".local" / "share" / "JetBrains",
             home / ".local" / "share" / "JetBrains" / "Toolbox" / "apps",
             home / ".local" / "share" / "applications",
+            Path("/opt/android-studio"), home / "android-studio",
             # Flatpak install trees (system + per-user)
             Path("/var/lib/flatpak/app"),
             home / ".local" / "share" / "flatpak" / "app",
@@ -301,6 +316,19 @@ class KeymapSource:
                     break
         if plugins_dir.is_dir():
             jars += sorted(plugins_dir.glob("keymap-*/lib/*.jar"))
+        # user keymaps: indexed by file stem AND by the <keymap name=""> inside,
+        # because the file name need not equal the display name.
+        self._user_index: dict[str, Path] = {}
+        self._user_names: list[str] = []
+        for f in sorted(config_keymaps.glob("*.xml")) if config_keymaps.is_dir() else []:
+            try:
+                inner = ET.fromstring(f.read_text(encoding="utf-8")).get("name")
+            except (ET.ParseError, OSError, UnicodeDecodeError):
+                inner = None
+            self._user_index.setdefault(f.stem, f)
+            if inner:
+                self._user_index.setdefault(inner, f)
+            self._user_names.append(inner or f.stem)
         # index built-in keymaps by BOTH the file stem and the <keymap name="">
         # attribute inside (newer IDEs show "macOS" but ship "Mac OS X 10.5+.xml").
         self._jar_index: dict[str, tuple[Path, str]] = {}
@@ -329,19 +357,25 @@ class KeymapSource:
         "windows": "$default", "default": "$default",
     }
 
+    def _user_file(self, name: str) -> Path | None:
+        if name in self._user_index:
+            return self._user_index[name]
+        stem = self.config_keymaps / f"{name}.xml"
+        return stem if stem.is_file() else None
+
     def canonical(self, name: str) -> str:
-        if (self.config_keymaps / f"{name}.xml").is_file() or name in self._jar_index:
+        if self._user_file(name) or name in self._jar_index:
             return name
         return self.ALIASES.get(name.strip().lower(), name)
 
     def has(self, name: str) -> bool:
         name = self.canonical(name)
-        return (self.config_keymaps / f"{name}.xml").is_file() or name in self._jar_index
+        return self._user_file(name) is not None or name in self._jar_index
 
     def get(self, name: str) -> str:
         name = self.canonical(name)
-        local = self.config_keymaps / f"{name}.xml"
-        if local.is_file():
+        local = self._user_file(name)
+        if local is not None:
             return local.read_text(encoding="utf-8")
         if name in self._jar_index:
             jar, entry = self._jar_index[name]
@@ -356,7 +390,7 @@ class KeymapSource:
         )
 
     def user_keymaps(self) -> list[str]:
-        return sorted(p.stem for p in self.config_keymaps.glob("*.xml"))
+        return sorted(self._user_names)
 
     def builtin_keymaps(self) -> list[str]:
         return sorted(self._jar_index)
@@ -494,6 +528,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global last_output
     args = build_arg_parser().parse_args(argv)
 
     lib_dir, plugins_dir, data_dir_name = resolve_install(args.product, args.app)
@@ -528,6 +563,7 @@ def main(argv: list[str] | None = None) -> int:
 
     chain, merged, plugin_added = resolve(name, src, plugins_dir, lib_dir)
     out, kept = write_resolved(name, chain, merged)
+    last_output = out
 
     install_root = lib_dir.parent.parent if lib_dir.parent.name == "Contents" else lib_dir.parent
     print(f"product : {args.product}")
