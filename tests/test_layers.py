@@ -12,10 +12,13 @@ Override layers in generate.py:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -130,6 +133,45 @@ class SaveShortcut(unittest.TestCase):
     def test_no_curated_layer_binds_save_all(self):
         entries = generate.load_overrides(["windows-keymap", "karabiner-winkeys"]).entries
         self.assertNotIn("workbench.action.files.saveAll", {e["command"] for e in entries})
+
+
+class SaveShortcutEndToEnd(unittest.TestCase):
+    """Run the whole generator on a keymap that binds SaveAll and read the result."""
+
+    SOURCE = (
+        '<keymap version="1" name="save-all-only" parent="$default">\n'
+        '  <action id="SaveAll">\n'
+        '    <keyboard-shortcut first-keystroke="control S" />\n'
+        '  </action>\n'
+        '</keymap>\n'
+    )
+
+    def _generate(self, layers: list[str]) -> list[dict]:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            source = _write(tmp, "keymap.xml", self.SOURCE)
+            with mock.patch.object(generate, "resolve_source_xml", return_value=source), \
+                 mock.patch.object(generate, "OUT_KEYBINDINGS", tmp / "out.json"), \
+                 mock.patch.object(generate, "OUT_REPORT", tmp / "report.md"), \
+                 mock.patch.object(generate, "ROOT", tmp), \
+                 contextlib.redirect_stdout(io.StringIO()), \
+                 contextlib.redirect_stderr(io.StringIO()):
+                generate.main([a for layer in layers for a in ("--layer", layer)])
+            return generate.load_jsonc(tmp / "out.json")
+
+    def _assert_ctrl_s_saves_only_the_active_file(self, layers: list[str]):
+        bindings = self._generate(layers)
+        on_ctrl_s = [e["command"] for e in bindings
+                     if e["key"] == "ctrl+s" and not e["command"].startswith("-")]
+        self.assertEqual(on_ctrl_s, ["workbench.action.files.save"])
+        self.assertNotIn("workbench.action.files.saveAll",
+                         {e["command"] for e in bindings if not e["command"].startswith("-")})
+
+    def test_ctrl_s_saves_only_the_active_file_without_a_layer(self):
+        self._assert_ctrl_s_saves_only_the_active_file([])
+
+    def test_ctrl_s_saves_only_the_active_file_with_the_windows_layer(self):
+        self._assert_ctrl_s_saves_only_the_active_file(["windows-keymap"])
 
 
 class WindowsKeymapLayer(unittest.TestCase):
