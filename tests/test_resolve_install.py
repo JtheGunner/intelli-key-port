@@ -175,6 +175,22 @@ class AndroidStudio(unittest.TestCase):
             self.assertIn(prefix, rk.CONFIG_DIR_PREFIXES)
 
 
+class MainRecordsOutput(unittest.TestCase):
+    def test_main_records_last_output(self):
+        lib_root, config, root = _tmpdir(self), _tmpdir(self), _tmpdir(self)
+        out = root / "source"
+        _jar(lib_root / "lib" / "app.jar", {"keymaps/$default.xml": DEFAULT_KEYMAP_XML})
+        (config / "keymaps").mkdir()
+        with unittest.mock.patch.object(rk, "ROOT", root), \
+                unittest.mock.patch.object(rk, "OUT_DIR", out), \
+                unittest.mock.patch.object(rk, "last_output", None):
+            rc = rk.main(["--app", str(lib_root), "--config-dir", str(config),
+                          "--keymap", "$default"])
+            self.assertEqual(rc, 0)
+            self.assertEqual(rk.last_output, out / "default.resolved.xml")
+            self.assertTrue(rk.last_output.is_file())
+
+
 class KeymapSourceJarLayout(unittest.TestCase):
     def test_reads_builtin_from_split_core_jar(self):
         lib = _tmpdir(self)

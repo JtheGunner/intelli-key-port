@@ -53,6 +53,9 @@ OUT_DIR = ROOT / "source"
 IS_MAC = platform.system() == "Darwin"
 IS_WIN = platform.system() == "Windows"
 
+# Path of the *.resolved.xml written by the latest main() call (read by port.py).
+last_output: Path | None = None
+
 # `--product` value -> substrings that identify the install (product-info.json
 # "name") and the config-dir prefix (dataDirectoryName / folder name).
 PRODUCTS = {
@@ -505,6 +508,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global last_output
     args = build_arg_parser().parse_args(argv)
 
     lib_dir, plugins_dir, data_dir_name = resolve_install(args.product, args.app)
@@ -539,6 +543,7 @@ def main(argv: list[str] | None = None) -> int:
 
     chain, merged, plugin_added = resolve(name, src, plugins_dir, lib_dir)
     out, kept = write_resolved(name, chain, merged)
+    last_output = out
 
     install_root = lib_dir.parent.parent if lib_dir.parent.name == "Contents" else lib_dir.parent
     print(f"product : {args.product}")

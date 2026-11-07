@@ -6,7 +6,7 @@
 Carry the keybindings you actually care about from *any* JetBrains / IntelliJ IDE
 into the rest of your editors.
 
-<code>🧠 JetBrains keymap</code> &nbsp;→&nbsp; <code>🔄 IntelliKeyPort</code> &nbsp;→&nbsp; <code>💻 VS Code · Cursor · Windsurf · Antigravity</code>
+<code>🧠 JetBrains · Android Studio</code> &nbsp;→&nbsp; <code>🔄 IntelliKeyPort</code> &nbsp;→&nbsp; <code>💻 VS Code · Cursor · Antigravity · JetBrains · Android Studio</code>
 
 ![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?style=flat-square&logo=python&logoColor=white)
@@ -21,8 +21,8 @@ into the rest of your editors.
 ## 🎯 What it is
 
 Pick a keymap in one IntelliJ-based IDE — IntelliJ IDEA, PhpStorm, WebStorm,
-PyCharm, GoLand, DataGrip, Rider, … — and IntelliKeyPort reproduces it in the **VS Code family**: VS Code, VS Code Insiders, VSCodium, Cursor, Windsurf,
-Antigravity.
+PyCharm, GoLand, DataGrip, Rider, … or Android Studio — and IntelliKeyPort reproduces it in the **VS Code family**
+(VS Code, VS Code Insiders, VSCodium, Cursor, Windsurf, Antigravity) and in **other JetBrains IDEs and Android Studio**.
 
 It does the whole trip from A to Z:
 
@@ -41,10 +41,10 @@ identical everywhere.
 
 |                                  |                                                                                    |
 |----------------------------------|------------------------------------------------------------------------------------|
-| 📥&nbsp;&nbsp;**Input**          | the active keymap of any JetBrains IDE (or a hand-exported `.xml`)                 |
-| 📤&nbsp;&nbsp;**Output**         | a ready-to-use `keybindings.json` for every installed VS Code-family editor        |
+| 📥&nbsp;&nbsp;**Input**          | the active keymap of any JetBrains IDE or Android Studio (or a hand-exported `.xml`) |
+| 📤&nbsp;&nbsp;**Output**         | a `keybindings.json` for VS Code-family editors; a new `<name> (ported)` keymap for JetBrains IDEs and Android Studio |
 | 🧰&nbsp;&nbsp;**Dependencies**   | none — Python 3 standard library only                                              |
-| 💾&nbsp;&nbsp;**Safe**           | each target's `keybindings.json` is backed up as `…bak-<timestamp>` before writing |
+| 💾&nbsp;&nbsp;**Safe**           | every file it overwrites is backed up as `…bak-<timestamp>`; your original JetBrains keymaps are never touched |
 | 🔁&nbsp;&nbsp;**Repeatable**     | idempotent; discovery happens at runtime, so it survives IDE updates               |
 | 🖥️&nbsp;&nbsp;**Cross-platform** | macOS, Windows, Linux (incl. JetBrains Toolbox, Snap, Flatpak)                     |
 
@@ -122,15 +122,16 @@ and stops at the first failure.
 | 🎬&nbsp;&nbsp;`port.py`           | One-shot driver: `resolve → generate → install`. A failing stage stops the chain.                                                                                                                                                                                                                                                        |
 | 🔍&nbsp;&nbsp;`resolve_keymap.py` | **Stage 1.** Locates the JetBrains IDE (`/Applications`, Program Files, `/opt`, JetBrains Toolbox, Snap, Flatpak), finds its config directory, reads `keymap.xml` for the active keymap, walks the parent chain (`$default → … → your keymap`), and folds in plugin-registered defaults (Git, etc.). → one flat `source/*.resolved.xml`. |
 | 🏗️&nbsp;&nbsp;`generate.py`       | **Stage 2.** Turns the resolved keymap into a VS Code `keybindings.json` *delta*: applies the `k--kato` mapping tables + the curated layers, decodes extended key codes, adds `when` guards (terminal keys, suggest popup), and detects/resolves key collisions. → `keybindings.generated.json` + a readable `report.md`.                                     |
-| 📦&nbsp;&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors, backs up each one's `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. Interactive checkbox picker when several editors are found.                                                                                                                         |
+| 📦&nbsp;&nbsp;`install.py`        | **Stage 3.** Detects installed VS Code-family editors and JetBrains IDEs (incl. Android Studio). VS Code-family: backs up `keybindings.json` as `…bak-<timestamp>`, then writes the generated file. JetBrains: writes the resolved keymap as a new `<name> (ported)` keymap into the IDE's `keymaps/` folder. Interactive checkbox picker; JetBrains IDEs are opt-in (picker or `--only`).                                                                                                                         |
 | 🎛️&nbsp;&nbsp;`overrides.jsonc`   | **Base layer**, always applied: keymap- and machine-neutral fixes that steer stage 2 — see below.                                                                                                                                                                                                                                        |
 | 🧅&nbsp;&nbsp;`layers/`           | **Optional layers**, stacked on the base only with `--layer NAME` — see below.                                                                                                                                                                                                                                                           |
 | 🧷&nbsp;&nbsp;`kkato.py`          | Locates the `k--kato` extension's resources (newest installed copy, else `vendor/kkato/`).                                                                                                                                                                                                                                               |
 | ☑️&nbsp;&nbsp;`prompt_select.py`  | Stdlib arrow-key checkbox prompt used by `install.py`.                                                                                                                                                                                                                                                                                   |
 | 🔄&nbsp;&nbsp;`sync_vendor.py`    | Refreshes `vendor/kkato/` from the installed extension.                                                                                                                                                                                                                                                                                  |
 | 🗃️&nbsp;&nbsp;`vendor/kkato/`     | Pinned copy of the `k--kato` mapping tables + a `VERSION` file — offline fallback for a fresh checkout / CI.                                                                                                                                                                                                                             |
+| 🧬&nbsp;&nbsp;`jb_keymap.py`      | Renders and installs the ported keymap for JetBrains targets (used by `install.py`).                                                                                                                                                                                                                                                      |
 | 📁&nbsp;&nbsp;`source/`           | Where the resolved keymap (or a hand-exported one) lives.                                                                                                                                                                                                                                                                                |
-| 🧪&nbsp;&nbsp;`tests/`            | Unit tests for install-layout discovery, the editor picker, conflict resolution, and layer stacking.                                                                                                                                                                                                                                     |
+| 🧪&nbsp;&nbsp;`tests/`            | Unit tests for install-layout discovery, the target picker, JetBrains targets, conflict resolution, and layer stacking.                                                                                                                                                                                                                                     |
 
 > [!NOTE]
 > Everything tracked in git is machine-independent. The per-user build outputs
@@ -206,7 +207,7 @@ the stage that needs it.
 
 Resolve a different JetBrains IDE. Known values: `PhpStorm`, `IntelliJIdea`,
 `WebStorm`, `PyCharm`, `DataGrip`, `GoLand`, `RubyMine`, `CLion`, `Rider`,
-`RustRover`.
+`RustRover`, `AndroidStudio`.
 
 </td></tr>
 <tr><td>
@@ -254,9 +255,25 @@ Point at an explicit IDE **config** directory (the one holding
 
 </td><td>
 
-Install into just these editors (repeatable). Names are the config-folder
-names: `Code`, `Code - Insiders`, `VSCodium`, `Cursor`, `Windsurf`,
-`Antigravity`, `Antigravity IDE`. Also skips the picker.
+Install into just these targets (repeatable). VS Code-family names are the
+config-folder names: `Code`, `Code - Insiders`, `VSCodium`, `Cursor`, `Windsurf`,
+`Antigravity`, `Antigravity IDE`. JetBrains IDEs and Android Studio are named by
+config dir (`AndroidStudio2026.2.2`) or product prefix (`PhpStorm` = every
+installed version). Also skips the picker.
+
+</td></tr>
+<tr><td>
+
+```sh
+./port.py --product AndroidStudio --only PhpStorm
+```
+
+</td><td>
+
+Port the active Android Studio keymap into PhpStorm. The keymap appears as
+`<name> (ported)` under *Settings → Keymap* (restart a running IDE). JetBrains
+IDEs are **only** installed when picked or named with `--only`; a run without
+a terminal writes to VS Code-family editors only.
 
 </td></tr>
 <tr><td>
@@ -338,7 +355,7 @@ Each stage also runs on its own, with the same options:
 ```sh
 python3 resolve_keymap.py [--product … --keymap … --app … --config-dir …]
 python3 generate.py
-python3 install.py        [--only NAME … --dry-run --file PATH]
+python3 install.py        [--only NAME … --dry-run --file PATH --resolved PATH]
 python3 sync_vendor.py
 ```
 
@@ -471,7 +488,7 @@ mappings.
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧭</span><span>**Report a mapping gap.** Run `./port.py` and open `report.md`. If an action you use is under *"No VS Code command mapping"*
   but a VS Code command does exist, add the pair to `manualActionCommand` in `overrides.jsonc` and send a PR.</span></span>
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧠</span><span>**Add a JetBrains product** → extend the `PRODUCTS` table in `resolve_keymap.py`.</span></span>
-- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💻</span><span>**Add an editor** → extend the `EDITORS` table in `install.py`.</span></span>
+- <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>💻</span><span>**Add an editor** → extend the `EDITORS` table in `install.py`; a new JetBrains IDE also needs its config-dir prefix in `CONFIG_DIR_PREFIXES`.</span></span>
 - <span style="display: inline-flex; align-items: flex-start; gap: 10px;"><span>🧪</span><span>**Run the tests** before opening a PR:</span></span>
   ```sh
   python3 -m unittest discover -s tests -v

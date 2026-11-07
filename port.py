@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-One command for the whole flow:  resolve the active JetBrains keymap  ->
-generate keybindings.generated.json + report.md  ->  install into the
-VS Code-family editors you pick (interactive checkbox prompt when more
-than one is found; --only / --dry-run / no tty skip it).
+One command for the whole flow:  resolve the active keymap of a JetBrains IDE
+(incl. Android Studio)  ->  generate keybindings.generated.json + report.md  ->
+install into the IDEs you pick: VS Code-family editors, and (opt-in, via the
+picker or --only) JetBrains IDEs incl. Android Studio. Interactive checkbox
+prompt when more than one target is found; --only / --dry-run / no tty skip it.
 
     ./port.py                        # all three steps
     ./port.py --product WebStorm     # (resolve) a different JetBrains IDE
+    ./port.py --product AndroidStudio --only PhpStorm   # Android Studio -> PhpStorm
     ./port.py --keymap macOS         # (resolve) a specific keymap
     ./port.py --only Code --dry-run  # (install) restrict / preview
     ./port.py --skip-install         # stop after generate
@@ -17,7 +19,7 @@ than one is found; --only / --dry-run / no tty skip it).
 Each step is still runnable on its own:
     python3 resolve_keymap.py [--product ... --keymap ... --app ... --config-dir ...]
     python3 generate.py      [--layer NAME|PATH ...]
-    python3 install.py       [--only NAME ... --dry-run --file PATH]
+    python3 install.py       [--only NAME ... --dry-run --file PATH --resolved PATH]
     python3 sync_vendor.py
 
 `--dry-run` previews the install only; resolve/generate always run (they just
@@ -69,9 +71,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     g_ins = ap.add_argument_group("install step (see install.py)")
     g_ins.add_argument("--only", action="append", metavar="NAME",
-                       help="restrict install to this editor config-folder (repeatable)")
+                       help="restrict install to this editor config-folder or JetBrains "
+                            "config-dir name / product prefix (repeatable)")
     g_ins.add_argument("--dry-run", action="store_true", help="preview the install")
     g_ins.add_argument("--file", help="keybindings file to install (default: the generated one)")
+    g_ins.add_argument("--resolved", metavar="PATH",
+                       help="resolved keymap for JetBrains targets (default: the one the "
+                            "resolve step just wrote)")
 
     g_flow = ap.add_argument_group("flow")
     g_flow.add_argument("--skip-resolve", action="store_true",
@@ -103,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
     install_argv: list[str] = []
     if args.file:
         install_argv += ["--file", args.file]
+    if args.resolved:
+        install_argv += ["--resolved", args.resolved]
     for name in args.only or []:
         install_argv += ["--only", name]
     if args.dry_run:
@@ -115,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.skip_resolve:
         _run("resolve", resolve_keymap.main, resolve_argv)
+        if not args.resolved and resolve_keymap.last_output:
+            install_argv += ["--resolved", str(resolve_keymap.last_output)]
     _run("generate", generate.main, generate_argv)
     if not args.skip_install:
         _run("install", install.main, install_argv)
