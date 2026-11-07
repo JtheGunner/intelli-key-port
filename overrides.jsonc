@@ -45,7 +45,11 @@
     "SplitHorizontally": "workbench.action.splitEditorDown",
     "Unsplit": "workbench.action.joinTwoGroups",
     "SelectInProjectView": "workbench.files.action.showActiveFileInExplorer",
-    "NewElement": "workbench.action.files.newUntitledFile"
+    "NewElement": "workbench.action.files.newUntitledFile",
+    // JetBrains saves every file on Ctrl+S (Cmd+S on macOS keymaps). In VS Code
+    // that would write all open files on each save, so the key saves only the
+    // active file instead.
+    "SaveAll": "workbench.action.files.save"
   },
 
   "dropActions": [
@@ -73,17 +77,12 @@
     "NextDiff",
 
     // Diff-viewer-only; collides with Switcher (Recent Files) on Ctrl+Shift+Tab.
-    "Diff.FocusOppositePane",
-
-    // JetBrains saves every file on Ctrl+S (Cmd+S on macOS keymaps). In VS Code
-    // that would write all open files on each save, so the key keeps VS Code's
-    // "save active file" instead (see layers/windows-keymap.jsonc for Ctrl+S).
-    "SaveAll"
+    "Diff.FocusOppositePane"
   ],
 
   "entries": [
-    // "Save All" gets no shortcut. SaveAll is dropped above; these removals also
-    // strip a Ctrl+S / Cmd+S -> saveAll rule contributed by an installed
+    // "Save All" gets no shortcut. SaveAll is mapped to "save" above; these removals
+    // also strip a Ctrl+S / Cmd+S -> saveAll rule contributed by an installed
     // JetBrains-keymap extension. The command stays in the Command Palette.
     { "key": "ctrl+s",       "command": "-workbench.action.files.saveAll" },
     { "key": "cmd+s",        "command": "-workbench.action.files.saveAll" },

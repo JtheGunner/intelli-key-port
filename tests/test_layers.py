@@ -110,25 +110,22 @@ class BaseMappingGaps(unittest.TestCase):
 class SaveShortcut(unittest.TestCase):
     """The save key saves the active file, never every open file."""
 
-    def test_save_all_is_never_ported(self):
-        # JetBrains binds SaveAll to Ctrl+S (Cmd+S on macOS keymaps); mapping it
-        # makes the save key write every open file in VS Code.
-        self.assertIn("SaveAll", generate.load_overrides([]).drop_actions)
+    def test_save_all_maps_to_save_active_file(self):
+        # JetBrains binds SaveAll to Ctrl+S (Cmd+S on macOS keymaps). Mapping it to
+        # saveAll would write every open file on each save in VS Code; mapping it
+        # to save keeps the key of the chosen keymap, with or without a layer.
+        ov = generate.load_overrides([])
+        self.assertEqual(ov.manual_action_command.get("SaveAll"),
+                         "workbench.action.files.save")
+        self.assertNotIn("SaveAll", ov.drop_actions)
 
     def test_save_all_is_explicitly_unbound_from_the_save_keys(self):
-        # Dropping the action only stops the generator; a removal entry also
-        # strips a Ctrl+S / Cmd+S -> saveAll binding that an installed
-        # JetBrains-keymap extension contributes on its own.
+        # A removal entry also strips a Ctrl+S / Cmd+S -> saveAll binding that an
+        # installed JetBrains-keymap extension contributes on its own.
         entries = generate.load_overrides([]).entries
         removed = {(e["key"], e["command"]) for e in entries}
         self.assertIn(("ctrl+s", "-workbench.action.files.saveAll"), removed)
         self.assertIn(("cmd+s", "-workbench.action.files.saveAll"), removed)
-
-    def test_windows_layer_binds_ctrl_s_to_save_active_file(self):
-        entries = generate.load_overrides(["windows-keymap"]).entries
-        bound = [e for e in entries if e["key"] == "ctrl+s" and not e["command"].startswith("-")]
-        self.assertEqual([e["command"] for e in bound], ["workbench.action.files.save"])
-        self.assertEqual(bound[0].get("when"), "!terminalFocus")
 
     def test_no_curated_layer_binds_save_all(self):
         entries = generate.load_overrides(["windows-keymap", "karabiner-winkeys"]).entries
