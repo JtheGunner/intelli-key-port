@@ -130,6 +130,16 @@ class KeymapSourceJarLayout(unittest.TestCase):
         src = rk.KeymapSource(_tmpdir(self), lib, _tmpdir(self))
         self.assertTrue(src.has("$default"))
 
+    def test_scans_when_core_jar_exists_but_holds_no_keymaps(self):
+        # 2026.3 keeps intellij.platform.ide.impl.jar but moved keymaps/ into
+        # intellij.platform.resources.jar.
+        lib = _tmpdir(self)
+        _jar(lib / "intellij.platform.ide.impl.jar", {"com/example/Foo.class": "x"})
+        _jar(lib / "intellij.platform.resources.jar",
+             {"keymaps/$default.xml": DEFAULT_KEYMAP_XML})
+        src = rk.KeymapSource(_tmpdir(self), lib, _tmpdir(self))
+        self.assertTrue(src.has("$default"))
+
     def test_falls_back_to_scanning_unknown_jar_name(self):
         lib = _tmpdir(self)
         _jar(lib / "renamed-platform-core.jar",
