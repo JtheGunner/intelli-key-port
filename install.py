@@ -125,13 +125,13 @@ def target_matches(folder: str, wanted: set[str]) -> bool:
     return any(folder == w or folder.lower().startswith(w.lower()) for w in wanted)
 
 
-def select_targets(targets, args, default=None):
+def select_targets(targets, args, default=None, preselected=None):
     """Let the user pick from `targets` interactively; return the kept subset.
 
     Without a choice (a single hit, no interactive terminal) the result is
     `default`, or all of `targets` when `default` is None. --only and --dry-run
-    return all of `targets`. Returns None when the user explicitly cancelled
-    the picker.
+    return all of `targets`. In the picker, `preselected` (indices) are the rows
+    that start checked (default: all). Returns None when the user cancelled.
     """
     fallback = targets if default is None else default
     if args.only or args.dry_run:
@@ -144,7 +144,7 @@ def select_targets(targets, args, default=None):
     print(f"found: {len(targets)} IDE(s)")
     labels = [f"{label}  ({dst.parent})" for _, label, dst in targets]
     try:
-        picked = choose(labels, title="Install into which IDEs?")
+        picked = choose(labels, title="Install into which IDEs?", preselected=preselected)
     except PromptUnavailable:
         return fallback
     if picked is None:
@@ -189,7 +189,9 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 1
 
-    selected = select_targets(candidates, args, default=vscode)
+    selected = select_targets(
+        candidates, args, default=vscode,
+        preselected=[i for i, t in enumerate(candidates) if t in vscode])
     if selected is None:
         print("nothing selected - aborted.")
         return 0
@@ -204,8 +206,14 @@ def main(argv: list[str] | None = None) -> int:
     src = Path(args.file)
     if selected_vscode and not src.is_file():
         raise SystemExit(f"{src} missing - run:  python3 generate.py")
-    resolved = (jb_keymap.find_resolved_file(args.resolved, ROOT / "source")
-                if selected_jetbrains else None)
+    resolved = None
+    if selected_jetbrains:
+        try:
+            resolved = jb_keymap.find_resolved_file(args.resolved, ROOT / "source")
+        except SystemExit as exc:
+            if not args.dry_run:
+                raise
+            print(f"note: {exc}", file=sys.stderr)
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     wrote_vscode = wrote_jetbrains = 0
@@ -223,6 +231,10 @@ def main(argv: list[str] | None = None) -> int:
         wrote_vscode += 1
 
     for _folder, label, keymaps_dir in selected_jetbrains:
+        if resolved is None:  # dry-run without a resolved keymap: name is not known yet
+            print(f"would write : {keymaps_dir}/<keymap> (ported).xml   ({label})")
+            wrote_jetbrains += 1
+            continue
         dst = jb_keymap.install_keymap(resolved, keymaps_dir, dry_run=True, stamp=stamp)
         if args.dry_run:
             print(f"would write : {dst}   ({label})")

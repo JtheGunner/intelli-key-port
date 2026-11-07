@@ -191,6 +191,29 @@ class MainRecordsOutput(unittest.TestCase):
             self.assertTrue(rk.last_output.is_file())
 
 
+class UserKeymapByInnerName(unittest.TestCase):
+    """A user keymap is found by its <keymap name=""> even if the file stem differs."""
+
+    def _source(self):
+        cfg = _tmpdir(self)
+        (cfg / "X-ported.xml").write_text(
+            '<keymap version="1" name="X (ported)"></keymap>', encoding="utf-8")
+        (cfg / "plain.xml").write_text('<keymap version="1" name="plain"></keymap>',
+                                       encoding="utf-8")
+        return rk.KeymapSource(cfg, _tmpdir(self), _tmpdir(self))
+
+    def test_has_and_get_by_inner_name(self):
+        src = self._source()
+        self.assertTrue(src.has("X (ported)"))
+        self.assertIn("X (ported)", src.get("X (ported)"))
+
+    def test_lookup_by_stem_still_works(self):
+        self.assertTrue(self._source().has("plain"))
+
+    def test_user_keymaps_lists_display_names(self):
+        self.assertEqual(self._source().user_keymaps(), ["X (ported)", "plain"])
+
+
 class KeymapSourceJarLayout(unittest.TestCase):
     def test_reads_builtin_from_split_core_jar(self):
         lib = _tmpdir(self)
