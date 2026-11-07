@@ -34,10 +34,6 @@
     { "key": "ctrl+g",       "command": "workbench.action.gotoLine",          "when": "!terminalFocus && !findWidgetVisible" },
     { "key": "ctrl+j",       "command": "editor.emmet.action.expandAbbreviation", "when": "!terminalFocus" },
 
-    // Save the active file only. JetBrains' SaveAll (Ctrl+S) is dropped in the base
-    // layer; Cmd+S is unbound below, so Ctrl+S needs its own binding on macOS.
-    { "key": "ctrl+s",       "command": "workbench.action.files.save",        "when": "!terminalFocus" },
-
     // ---- Remove stock macOS Cmd defaults so they do not double-fire -----------
     // Cmd+V stays bound on purpose: removing it breaks paste in non-editor inputs
     // (e.g. the Antigravity agent chat), Ctrl+V included.
