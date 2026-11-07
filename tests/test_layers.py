@@ -115,6 +115,15 @@ class SaveShortcut(unittest.TestCase):
         # makes the save key write every open file in VS Code.
         self.assertIn("SaveAll", generate.load_overrides([]).drop_actions)
 
+    def test_save_all_is_explicitly_unbound_from_the_save_keys(self):
+        # Dropping the action only stops the generator; a removal entry also
+        # strips a Ctrl+S / Cmd+S -> saveAll binding that an installed
+        # JetBrains-keymap extension contributes on its own.
+        entries = generate.load_overrides([]).entries
+        removed = {(e["key"], e["command"]) for e in entries}
+        self.assertIn(("ctrl+s", "-workbench.action.files.saveAll"), removed)
+        self.assertIn(("cmd+s", "-workbench.action.files.saveAll"), removed)
+
     def test_windows_layer_binds_ctrl_s_to_save_active_file(self):
         entries = generate.load_overrides(["windows-keymap"]).entries
         bound = [e for e in entries if e["key"] == "ctrl+s" and not e["command"].startswith("-")]
@@ -171,7 +180,12 @@ class BaseStaysNeutral(unittest.TestCase):
     """Without --layer the output carries no keymap-family or Karabiner assumptions."""
 
     def test_base_has_no_cmd_removals_or_ctrl_clipboard(self):
-        keys = {e["key"] for e in generate.load_overrides([]).entries}
+        # The explicit "no shortcut for Save All" removals are keymap-neutral and
+        # allowed; everything else on these keys belongs in a layer.
+        neutral = {("ctrl+s", "-workbench.action.files.saveAll"),
+                   ("cmd+s", "-workbench.action.files.saveAll")}
+        keys = {e["key"] for e in generate.load_overrides([]).entries
+                if (e["key"], e["command"]) not in neutral}
         for key in ("cmd+c", "cmd+s", "ctrl+c", "ctrl+v", "ctrl+y", "alt+left", "home"):
             self.assertNotIn(key, keys)
 
